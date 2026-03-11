@@ -183,3 +183,4 @@ ProductHealth_Dashboard/
 - When uncertain about a convention not documented here, ask before assuming
 - Update this CLAUDE.md file whenever significant architectural decisions are made, new tooling is added, or conventions change
 - Branch naming convention for AI work: `claude/<description>-<session-id>`
+- **After every change, update `README.md`** to reflect the current state of the project — this is the human-facing entry point. README must always cover: what the project does, prerequisites, how to run it locally (Docker), how to use the dashboard, and the current feature status. A user reading README.md for the first time should be able to get up and running without reading any other file.
