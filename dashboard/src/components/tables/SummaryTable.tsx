@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import type { StopRecord, SortConfig, FilterState } from '../../lib/types';
+import { EMPTY_FILTERS } from '../../lib/types';
 
 function applyFilters(stops: StopRecord[], filters: FilterState): StopRecord[] {
   return stops.filter((s) => {
@@ -63,19 +64,25 @@ export function SummaryTable() {
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const allStops = activeSession?.stops ?? [];
 
-  // Derive unique values for filter dropdowns
+  // Derive unique values for each filter dropdown using cascading logic:
+  // each dropdown's options come from data filtered by all OTHER active filters,
+  // so selecting one filter narrows down the choices in the remaining filters.
   const uniqueValues = useMemo(() => {
-    const unique = (fn: (s: StopRecord) => string | number) => [
-      ...new Set(allStops.map(fn)),
-    ].sort();
+    // Returns allStops filtered by every filter EXCEPT the named key
+    const stopsExcluding = (key: keyof FilterState) =>
+      applyFilters(allStops, { ...filters, [key]: EMPTY_FILTERS[key] });
+
+    const unique = (stops: StopRecord[], fn: (s: StopRecord) => string | number) =>
+      [...new Set(stops.map(fn))].sort();
+
     return {
-      robotIds: unique((s) => s.robotId) as number[],
-      l1: unique((s) => s.l1StopReason) as string[],
-      l2: unique((s) => s.l2StopReason) as string[],
-      l3: unique((s) => s.l3StopReason) as string[],
-      locations: unique((s) => s.stopLocationCode) as string[],
+      robotIds: unique(stopsExcluding('robotId'), (s) => s.robotId) as number[],
+      l1: unique(stopsExcluding('l1StopReason'), (s) => s.l1StopReason) as string[],
+      l2: unique(stopsExcluding('l2StopReason'), (s) => s.l2StopReason) as string[],
+      l3: unique(stopsExcluding('l3StopReason'), (s) => s.l3StopReason) as string[],
+      locations: unique(stopsExcluding('stopLocationCode'), (s) => s.stopLocationCode) as string[],
     };
-  }, [allStops]);
+  }, [allStops, filters]);
 
   const filtered = useMemo(
     () => applyFilters(allStops, filters),
