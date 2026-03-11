@@ -68,21 +68,40 @@ docker run -p 8080:80 ph-dashboard
 
 ---
 
+## How to Use
+
+1. **Start the dev server** (see above)
+2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files
+3. **Add session metadata** (optional) — enter the release version and robot IDs; if robot IDs are left blank they are auto-detected from the data
+4. **Click "Upload & Parse"** — the file is parsed entirely in the browser (nothing is sent to a server)
+5. **View KPIs** — six summary cards appear: total stops, total stop time, average duration, stops per robot, robot with most stops, and most common L2 stop reason
+6. **Browse the stop table** — all stop records are listed with sortable columns (click a header to sort) and dropdown filters for Robot, L1/L2/L3 reason, and Location
+7. **Switch sessions** — use the session dropdown in the header to switch between uploaded sessions, or click "Remove" to delete one
+
+---
+
 ## Project Structure
 
 ```
 ProductHealth_Dashboard/
-├── dashboard/              # Vite + React 19 + TypeScript app
+├── dashboard/                      # Vite + React 19 + TypeScript app
 │   ├── src/
-│   │   ├── components/     # UI components (charts, tables, filters, upload)
-│   │   ├── lib/            # ODS parser, TypeScript types, storage utilities
-│   │   ├── store/          # Zustand global state
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   └── Dockerfile          # Multi-stage: dev (hot reload) + prod (nginx)
-├── docker-compose.yml      # Orchestrates services (db and api stubs included)
-├── PLAN.md                 # Phased implementation roadmap
-└── CLAUDE.md               # AI assistant guidance
+│   │   ├── components/
+│   │   │   ├── dashboard/          # KPI summary cards
+│   │   │   ├── layout/            # Header with session selector
+│   │   │   ├── tables/            # Sortable/filterable stop record table
+│   │   │   └── upload/            # File upload + session metadata form
+│   │   ├── lib/
+│   │   │   ├── types.ts           # TypeScript interfaces (StopRecord, TestSession, etc.)
+│   │   │   └── parser.ts          # ODS file parsing + filename metadata extraction
+│   │   ├── store/
+│   │   │   └── useStore.ts        # Zustand store (sessions, filters, sort state)
+│   │   ├── App.tsx                # Main layout
+│   │   └── main.tsx               # React entry point
+│   └── Dockerfile                 # Multi-stage: dev (hot reload) + prod (nginx)
+├── docker-compose.yml             # Orchestrates services
+├── PLAN.md                        # Phased implementation roadmap
+└── CLAUDE.md                      # AI assistant guidance
 ```
 
 ---
@@ -106,7 +125,7 @@ ProductHealth_Dashboard/
 
 | Phase | Description | Status |
 |---|---|---|
-| Phase 1 | File upload, ODS parsing, summary table, KPIs | In progress |
+| Phase 1 | File upload, ODS parsing, summary table, KPIs | Complete |
 | Phase 2 | Interactive charts and cross-filtering | Planned |
 | Phase 3 | Spatial heatmap (POSE_X / POSE_Y) | Planned |
 | Phase 4 | Multi-session comparison and trend tracking | Planned |
