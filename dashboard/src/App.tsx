@@ -12,14 +12,14 @@ function App() {
   const [showUpload, setShowUpload] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <Header />
 
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-8 space-y-6">
         {/* Upload section */}
         {(!activeSession || showUpload) && (
-          <section className="bg-white rounded-lg border border-gray-200 p-5">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">
+          <section className="bg-slate-900/90 rounded-2xl border border-emerald-500/30 p-5 shadow-lg shadow-emerald-950/20 backdrop-blur-sm">
+            <h2 className="text-base font-semibold text-emerald-200 mb-3">
               Upload Stop Report
             </h2>
             <FileUpload />
@@ -29,7 +29,7 @@ function App() {
         {activeSession && !showUpload && (
           <button
             onClick={() => setShowUpload(true)}
-            className="text-sm text-blue-600 hover:text-blue-800 underline"
+            className="text-sm text-emerald-300 hover:text-emerald-200 underline underline-offset-2"
           >
             + Upload another session
           </button>
@@ -38,7 +38,7 @@ function App() {
         {showUpload && activeSession && (
           <button
             onClick={() => setShowUpload(false)}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-slate-400 hover:text-slate-200 underline underline-offset-2"
           >
             Hide upload form
           </button>
@@ -46,26 +46,26 @@ function App() {
 
         {/* Session info banner */}
         {activeSession && (
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <div className="bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1 text-sm shadow-lg shadow-slate-950/30">
             <span>
-              <span className="text-gray-500">Server:</span>{' '}
-              <span className="font-medium">
+              <span className="text-slate-400">Server:</span>{' '}
+              <span className="font-medium text-emerald-200">
                 {activeSession.fileMetadata.server}
               </span>
             </span>
             <span>
-              <span className="text-gray-500">Window:</span>{' '}
+              <span className="text-slate-400">Window:</span>{' '}
               {activeSession.fileMetadata.startTime} &mdash;{' '}
               {activeSession.fileMetadata.endTime}
             </span>
             {activeSession.sessionMetadata.releaseVersion && (
               <span>
-                <span className="text-gray-500">Release:</span>{' '}
+                <span className="text-slate-400">Release:</span>{' '}
                 {activeSession.sessionMetadata.releaseVersion}
               </span>
             )}
             <span>
-              <span className="text-gray-500">Robots:</span>{' '}
+              <span className="text-slate-400">Robots:</span>{' '}
               {activeSession.sessionMetadata.robotIds.join(', ')}
             </span>
           </div>
@@ -75,8 +75,8 @@ function App() {
         <KPICards />
 
         {/* Summary table */}
-        <section className="bg-white rounded-lg border border-gray-200 p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">
+        <section className="bg-slate-900/90 rounded-2xl border border-slate-700 p-5 shadow-lg shadow-slate-950/30">
+          <h2 className="text-base font-semibold text-emerald-200 mb-3">
             Stop Records
           </h2>
           <SummaryTable />

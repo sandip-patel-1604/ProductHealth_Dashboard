@@ -90,17 +90,21 @@ export function KPICards() {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      {cards.map((card) => (
+      {cards.map((card, index) => (
         <div
           key={card.label}
-          className="bg-white border border-gray-200 rounded-lg p-3"
+          className={`rounded-xl p-3 border shadow-md transition-transform hover:-translate-y-0.5 ${
+            index % 3 === 0
+              ? 'bg-emerald-500/15 border-emerald-500/35 shadow-emerald-950/30'
+              : 'bg-slate-900/90 border-slate-700 shadow-slate-950/30'
+          }`}
         >
-          <p className="text-xs text-gray-500 mb-1">{card.label}</p>
-          <p className="text-lg font-semibold text-gray-900 truncate">
+          <p className="text-xs text-slate-400 mb-1">{card.label}</p>
+          <p className="text-lg font-semibold text-slate-100 truncate">
             {card.value}
           </p>
           {card.sub && (
-            <p className="text-xs text-gray-400 mt-0.5">{card.sub}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>
           )}
         </div>
       ))}
