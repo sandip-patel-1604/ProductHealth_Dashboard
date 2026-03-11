@@ -6,15 +6,13 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 
 ## Project Overview
 
-**ProductHealth_Dashboard** is a project to track product development health based on robot data. The goal is to provide visibility into metrics, trends, and signals derived from automated/robotic systems to help teams understand the health of their product development lifecycle.
-
-> The project is in its initial setup phase. No application code has been written yet.
+**ProductHealth_Dashboard** is a React-based dashboard for analyzing overnight robot stop reports. Users upload `.ods` spreadsheets produced by automated test runs, and the dashboard provides interactive visualizations to evaluate test health: stop counts, stop durations, stop type distributions, spatial heatmaps, and multi-session trend tracking across software releases.
 
 ---
 
 ## Repository State
 
-- **Status:** Skeleton repository — implementation not yet started
+- **Status:** Phase 1 in progress — Docker + Vite scaffold complete
 - **License:** MIT
 - **Primary branch:** `master`
 
@@ -44,38 +42,56 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 
 ---
 
-## Planned Architecture (TBD)
-
-The following is a placeholder for architectural decisions to be made:
+## Architecture
 
 | Concern | Decision |
 |---|---|
-| Frontend framework | TBD |
-| Backend language / framework | TBD |
-| Database | TBD |
+| Frontend framework | React 19 + TypeScript (Vite) |
+| Backend language / framework | TBD (API service planned, stub in docker-compose) |
+| Database | PostgreSQL (planned — stub in docker-compose) |
 | Auth mechanism | TBD |
-| Data ingestion (robot data) | TBD |
-| Deployment / hosting | TBD |
+| ODS parsing | SheetJS (xlsx) — client-side, no upload to server |
+| State management | Zustand |
+| Charts | Recharts |
+| Styling | Tailwind CSS v4 |
+| Environment isolation | Docker + docker-compose (works on Mac + Ubuntu 18.04+) |
+| Deployment / hosting | Static site via nginx (prod Docker stage) |
 | CI/CD | TBD |
 
-Update this table as decisions are made.
+See `PLAN.md` for the full phased implementation plan.
 
 ---
 
 ## Development Setup
 
-> To be filled in once the stack is chosen.
-
 ### Prerequisites
 
-- [ ] List runtime dependencies here (Node, Python, Go, etc.)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac) or Docker Engine + docker-compose-plugin (Ubuntu)
+- No Node.js installation required on the host — everything runs inside Docker
 
-### Install Dependencies
+### Start the dev server (hot reload)
 
 ```bash
-# Example — update once stack is decided
-# npm install
-# pip install -r requirements.txt
+# From the repo root:
+docker compose up --build
+
+# Dashboard is available at http://localhost:5173
+```
+
+Edits to files in `dashboard/src/` are reflected instantly in the browser (Vite HMR through Docker volume mount).
+
+### Stop
+
+```bash
+docker compose down
+```
+
+### Production build (local test)
+
+```bash
+docker build --target prod -t ph-dashboard ./dashboard
+docker run -p 8080:80 ph-dashboard
+# Visit http://localhost:8080
 ```
 
 ### Environment Variables
@@ -83,17 +99,8 @@ Update this table as decisions are made.
 Create a `.env` file at the project root (never commit it). Expected variables will be documented here as they are added:
 
 ```
-# Example
-# DATABASE_URL=
+# DATABASE_URL=postgresql://ph_user:ph_pass@db:5432/product_health
 # API_KEY=
-```
-
-### Running Locally
-
-```bash
-# Example — update once stack is decided
-# npm run dev
-# python main.py
 ```
 
 ---
@@ -120,11 +127,12 @@ Create a `.env` file at the project root (never commit it). Expected variables w
 
 ## Build & Deployment
 
-> To be filled in once CI/CD and deployment targets are decided.
-
 ```bash
-# Example — update once stack is decided
-# npm run build
+# Build production image
+docker build --target prod -t ph-dashboard ./dashboard
+
+# Run production image locally
+docker run -p 8080:80 ph-dashboard
 ```
 
 ---
@@ -135,9 +143,19 @@ Create a `.env` file at the project root (never commit it). Expected variables w
 
 ```
 ProductHealth_Dashboard/
-├── CLAUDE.md          # This file
-├── LICENSE
-└── README.md
+├── dashboard/                  # Vite + React + TypeScript app
+│   ├── src/
+│   │   ├── components/         # UI components (charts, tables, filters, upload)
+│   │   ├── lib/                # ODS parser, types, storage utilities
+│   │   ├── store/              # Zustand state store
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── Dockerfile              # Multi-stage: dev (hot reload) + prod (nginx)
+│   └── package.json
+├── docker-compose.yml          # Orchestrates dashboard (+ future db / api)
+├── PLAN.md                     # Phased implementation roadmap
+├── CLAUDE.md                   # This file
+└── LICENSE
 ```
 
 ---
@@ -146,11 +164,15 @@ ProductHealth_Dashboard/
 
 | Term | Meaning |
 |---|---|
-| Robot data | Automated test/build/deployment signals produced by CI or physical robots |
-| Product health | Aggregate view of quality, velocity, and reliability metrics |
-| Dashboard | The UI surface presenting health metrics to engineers/managers |
-
-Expand this glossary as domain language is established.
+| Stop report | An `.ods` file recording all unplanned robot stops for one overnight test run |
+| Test session | One overnight test run: one server, one software version, one or more robots, one time window |
+| RobotId | Numeric ID of a physical robot (e.g., 220, 221, 310) |
+| L1 / L2 / L3 stop reason | Hierarchical stop classification (L1 = broadest, L3 = most specific) |
+| STOP_DURATION | Seconds the robot was halted — directly impacts test throughput |
+| POSE_X / POSE_Y | Robot's 2D floor coordinates at time of stop (meters) |
+| STOP_LOCATION_CODE | Named warehouse zone where the stop occurred |
+| Server | The test server name, embedded in the `.ods` filename (e.g., b023) |
+| Product health | Aggregate view of quality, velocity, and reliability across test sessions |
 
 ---
 
@@ -161,3 +183,4 @@ Expand this glossary as domain language is established.
 - When uncertain about a convention not documented here, ask before assuming
 - Update this CLAUDE.md file whenever significant architectural decisions are made, new tooling is added, or conventions change
 - Branch naming convention for AI work: `claude/<description>-<session-id>`
+- **After every change, update `README.md`** to reflect the current state of the project — this is the human-facing entry point. README must always cover: what the project does, prerequisites, how to run it locally (Docker), how to use the dashboard, and the current feature status. A user reading README.md for the first time should be able to get up and running without reading any other file.

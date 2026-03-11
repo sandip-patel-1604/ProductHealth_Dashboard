@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  dashboard:
+    build:
+      context: ./dashboard
+      target: dev          # use the dev stage (hot reload)
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./dashboard:/app        # live source mount — edits reflect instantly
+      - /app/node_modules       # anonymous volume: keep container's node_modules
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+
+  # ── Future services (uncomment when needed) ──────────────────────────────────
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: ph_user
+  #     POSTGRES_PASSWORD: ph_pass
+  #     POSTGRES_DB: product_health
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+
+  # api:
+  #   build: ./api
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     DATABASE_URL: postgresql://ph_user:ph_pass@db:5432/product_health
+
+# volumes:
+#   pg_data:
