@@ -99,7 +99,7 @@ export function SummaryTable() {
 
   if (!activeSession) {
     return (
-      <p className="text-gray-500 text-sm text-center py-8">
+      <p className="text-slate-400 text-sm text-center py-8">
         Upload a stop report to view data.
       </p>
     );
@@ -108,7 +108,7 @@ export function SummaryTable() {
   return (
     <div className="space-y-3">
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-end">
+      <div className="flex flex-wrap gap-2 items-end bg-slate-950/40 border border-slate-700 rounded-xl p-3">
         <FilterSelect
           label="Robot"
           value={filters.robotId !== null ? String(filters.robotId) : ''}
@@ -141,27 +141,27 @@ export function SummaryTable() {
         />
         <button
           onClick={resetFilters}
-          className="text-xs text-blue-600 hover:text-blue-800 underline pb-1"
+          className="text-xs text-emerald-300 hover:text-emerald-200 underline underline-offset-2 pb-1"
         >
           Clear filters
         </button>
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-slate-400">
         Showing {sorted.length} of {allStops.length} stops
       </p>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-950/40">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-emerald-500/10">
             <tr>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer select-none hover:bg-gray-100 whitespace-nowrap"
+                  className="px-3 py-2 text-left font-medium text-emerald-100 cursor-pointer select-none hover:bg-emerald-500/20 whitespace-nowrap"
                 >
                   {col.label}
                   {sort.key === col.key && (
@@ -173,9 +173,9 @@ export function SummaryTable() {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-800 text-slate-200">
             {sorted.map((stop) => (
-              <tr key={stop.id} className="hover:bg-gray-50">
+              <tr key={stop.id} className="hover:bg-slate-800/70">
                 <td className="px-3 py-2 font-mono">{stop.robotId}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {stop.timestamp}
@@ -209,11 +209,11 @@ function FilterSelect({
 }) {
   return (
     <div>
-      <label className="block text-xs text-gray-500 mb-0.5">{label}</label>
+      <label className="block text-xs text-slate-400 mb-0.5">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400"
       >
         <option value="">All</option>
         {options.map((opt) => (

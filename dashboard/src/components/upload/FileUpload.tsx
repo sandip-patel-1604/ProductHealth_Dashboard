@@ -106,10 +106,10 @@ export function FileUpload() {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
           dragOver
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+            ? 'border-emerald-400 bg-emerald-500/10'
+            : 'border-slate-600 hover:border-emerald-400/70 bg-slate-950/40'
         }`}
       >
         <input
@@ -120,14 +120,14 @@ export function FileUpload() {
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />
-        <p className="text-gray-600 text-sm">
+        <p className="text-slate-300 text-sm">
           {files.length > 0 ? (
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-emerald-200">
               {files.map((f) => f.name).join(', ')}
             </span>
           ) : (
             <>
-              <span className="font-medium">Click to upload</span> or drag and
+              <span className="font-medium text-emerald-200">Click to upload</span> or drag and
               drop .ods stop report files
             </>
           )}
@@ -137,7 +137,7 @@ export function FileUpload() {
       {/* Metadata fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-200 mb-1">
             Release Version
           </label>
           <input
@@ -147,11 +147,11 @@ export function FileUpload() {
               setMetadata((m) => ({ ...m, releaseVersion: e.target.value }))
             }
             placeholder="e.g. v2.3.1"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-slate-600 bg-slate-950 text-slate-100 rounded-md px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-200 mb-1">
             Robot IDs (comma-separated, or auto-detected)
           </label>
           <input
@@ -159,13 +159,13 @@ export function FileUpload() {
             value={robotIdsText}
             onChange={(e) => setRobotIdsText(e.target.value)}
             placeholder="e.g. 220, 221, 310"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-slate-600 bg-slate-950 text-slate-100 rounded-md px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-slate-200 mb-1">
           Notes
         </label>
         <textarea
@@ -175,12 +175,12 @@ export function FileUpload() {
           }
           placeholder="Optional notes about this test session"
           rows={2}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-slate-600 bg-slate-950 text-slate-100 rounded-md px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+        <p className="text-sm text-rose-200 bg-rose-950/40 border border-rose-800 rounded-md px-3 py-2">
           {error}
         </p>
       )}
@@ -188,7 +188,7 @@ export function FileUpload() {
       <button
         type="submit"
         disabled={loading || files.length === 0}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-emerald-500 text-slate-950 py-2.5 px-4 rounded-md text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Parsing...' : 'Upload & Parse'}
       </button>
