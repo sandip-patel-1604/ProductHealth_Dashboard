@@ -344,6 +344,7 @@ function ReasonDistributionSection({
             <Bar
               key={reason}
               dataKey={reason}
+              name={reason === AGGREGATED_OTHER_REASON_KEY ? 'Other' : reason}
               stackId="reasons"
               fill={CHART_COLORS[index % CHART_COLORS.length]}
               radius={index === reasonKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
@@ -364,6 +365,8 @@ const CHART_COLORS = [
   '#a3e635',
   '#fb7185',
 ];
+
+const AGGREGATED_OTHER_REASON_KEY = '__aggregated_other_reason__';
 
 function buildReasonDistributionByRobot(
   stops: Pick<StopRecord, 'robotId' | 'l2StopReason' | 'l3StopReason'>[],
@@ -394,7 +397,9 @@ function buildReasonDistributionByRobot(
     if (!row) continue;
 
     const rawReason = stop[field] || 'unknown';
-    const normalizedReason = reasonKeys.includes(rawReason) ? rawReason : 'Other';
+    const normalizedReason = reasonKeys.includes(rawReason)
+      ? rawReason
+      : AGGREGATED_OTHER_REASON_KEY;
     row[normalizedReason] = ((row[normalizedReason] as number) ?? 0) + 1;
   }
 
@@ -409,13 +414,16 @@ function buildReasonDistributionByRobot(
       row[reason] = (row[reason] as number) ?? 0;
     }
     if (hasOther) {
-      row.Other = (row.Other as number) ?? 0;
+      row[AGGREGATED_OTHER_REASON_KEY] =
+        (row[AGGREGATED_OTHER_REASON_KEY] as number) ?? 0;
     }
   }
 
   return {
     rows,
-    reasonKeys: hasOther ? [...reasonKeys, 'Other'] : reasonKeys,
+    reasonKeys: hasOther
+      ? [...reasonKeys, AGGREGATED_OTHER_REASON_KEY]
+      : reasonKeys,
   };
 }
 
