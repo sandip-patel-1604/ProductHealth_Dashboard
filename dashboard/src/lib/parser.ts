@@ -122,6 +122,11 @@ function findShortPerryColumnIndex(sheet: XLSX.WorkSheet): number {
   });
 }
 
+function extractHyperlinkFromFormula(formula: string): string {
+  const match = formula.match(/HYPERLINK\("([^"]+)"/i);
+  return match?.[1]?.trim() ?? '';
+}
+
 function getShortPerryLinkFromCell(
   sheet: XLSX.WorkSheet,
   rowIndex: number,
@@ -137,6 +142,10 @@ function getShortPerryLinkFromCell(
 
   if (!cell) return '';
   if (cell.l?.Target) return String(cell.l.Target).trim();
+  if (typeof cell.f === 'string') {
+    const formulaLink = extractHyperlinkFromFormula(cell.f);
+    if (formulaLink) return formulaLink;
+  }
   if (cell.w) return String(cell.w).trim();
   if (cell.v != null) return String(cell.v).trim();
   return '';
@@ -204,7 +213,7 @@ export async function parseOdsFile(file: File): Promise<StopRecord[]> {
 
     return {
       ...parsed,
-      perryLink: parsed.perryLink || cellLink,
+      perryLink: cellLink || parsed.perryLink,
     };
   });
 }

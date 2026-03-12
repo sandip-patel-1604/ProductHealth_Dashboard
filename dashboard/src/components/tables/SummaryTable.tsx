@@ -189,7 +189,7 @@ export function SummaryTable() {
                       rel="noreferrer"
                       className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2"
                     >
-                      {stop.perryLink}
+                      short_perry
                     </a>
                   ) : (
                     <span className="text-slate-500">-</span>
