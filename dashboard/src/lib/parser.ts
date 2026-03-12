@@ -105,6 +105,43 @@ function getShortPerryLink(row: Record<string, unknown>): string {
   return '';
 }
 
+function findShortPerryColumnIndex(sheet: XLSX.WorkSheet): number {
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+  });
+  const headers = rows[0] ?? [];
+
+  return headers.findIndex((header) => {
+    const normalized = normalizeHeader(String(header));
+    return (
+      normalized.includes('short') &&
+      normalized.includes('perry') &&
+      (normalized.includes('ctrlclick') || normalized.includes('click'))
+    );
+  });
+}
+
+function getShortPerryLinkFromCell(
+  sheet: XLSX.WorkSheet,
+  rowIndex: number,
+  columnIndex: number
+): string {
+  if (columnIndex < 0) return '';
+
+  // +1 because row 0 is the header row in uploaded reports.
+  const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: columnIndex });
+  const cell = sheet[cellAddress] as
+    | (XLSX.CellObject & { l?: { Target?: string } })
+    | undefined;
+
+  if (!cell) return '';
+  if (cell.l?.Target) return String(cell.l.Target).trim();
+  if (cell.w) return String(cell.w).trim();
+  if (cell.v != null) return String(cell.v).trim();
+  return '';
+}
+
 function normalizeHeader(header: string): string {
   return header.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
@@ -159,5 +196,15 @@ export async function parseOdsFile(file: File): Promise<StopRecord[]> {
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
-  return rows.map((row, i) => parseRow(row, i));
+  const shortPerryColumnIndex = findShortPerryColumnIndex(sheet);
+
+  return rows.map((row, i) => {
+    const parsed = parseRow(row, i);
+    const cellLink = getShortPerryLinkFromCell(sheet, i, shortPerryColumnIndex);
+
+    return {
+      ...parsed,
+      perryLink: parsed.perryLink || cellLink,
+    };
+  });
 }
