@@ -31,10 +31,18 @@ export interface FileMetadata {
 }
 
 /** User-provided metadata for a test session */
+export interface PatchRecord {
+  project: string;
+  patchSet: string;
+  description: string;
+}
+
+/** User-provided metadata for a test session */
 export interface SessionMetadata {
   releaseVersion: string;
   robotIds: number[];
   notes: string;
+  patches: PatchRecord[];
 }
 
 /** A complete test session: file metadata + user metadata + parsed stops */

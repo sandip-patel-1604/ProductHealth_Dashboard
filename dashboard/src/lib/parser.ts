@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { FileMetadata, StopRecord } from './types';
+import type { FileMetadata, PatchRecord, StopRecord } from './types';
 
 /**
  * Extract server name, start time, and end time from the .ods filename.
@@ -80,6 +80,53 @@ function parseRow(row: Record<string, unknown>, index: number): StopRecord {
     nrvSwVersion: str(row['NRV_SW_VERSION']),
     vrosSwVersion: str(row['VROS_SW_VERSION']),
   };
+}
+
+function normalizeHeader(header: string): string {
+  return header.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function getValueByHeader(row: Record<string, unknown>, expected: string): string {
+  const expectedHeader = normalizeHeader(expected);
+  for (const [key, value] of Object.entries(row)) {
+    if (normalizeHeader(key) === expectedHeader) {
+      return value != null ? String(value).trim() : '';
+    }
+  }
+  return '';
+}
+
+/** Parse an optional patch spreadsheet (.csv/.ods/.xlsx) */
+export async function parsePatchFile(file: File): Promise<PatchRecord[]> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+
+  const patches: PatchRecord[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: '',
+    });
+
+    for (const row of rows) {
+      const project = getValueByHeader(row, 'Project');
+      const patchSet = getValueByHeader(row, 'Patch set');
+      const description = getValueByHeader(row, 'Description');
+
+      if (!project || !patchSet || !description) {
+        continue;
+      }
+
+      patches.push({
+        project,
+        patchSet,
+        description,
+      });
+    }
+  }
+
+  return patches;
 }
 
 /** Parse an .ods File object and return the stop records */

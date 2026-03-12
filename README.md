@@ -1,6 +1,6 @@
 # ProductHealth Dashboard
 
-A React-based dashboard for analyzing overnight robot stop reports. Upload `.ods` spreadsheets from automated test runs and get interactive visualizations of stop counts, durations, stop type distributions, spatial heatmaps, and multi-session trend tracking across software releases.
+A React-based dashboard for analyzing overnight robot stop reports. Upload `.ods` spreadsheets from automated test runs and get interactive visualizations of stop counts, durations, stop type distributions, spatial heatmaps, patch context, and multi-session trend tracking across software releases.
 
 ---
 
@@ -9,6 +9,7 @@ A React-based dashboard for analyzing overnight robot stop reports. Upload `.ods
 After each overnight test run, robots produce stop reports in `.ods` format. This dashboard lets you:
 
 - **Upload** one or more stop report files for a test session
+- **Attach patch spreadsheets** (`.csv`, `.ods`, `.xlsx`) that describe patch project, patch set, and description
 - **See at a glance** how many stops occurred, which robots stopped most, and how long they were halted
 - **Drill down** by stop type (L1/L2/L3 classification hierarchy), location, robot, or time
 - **Compare across nights** — spot if a stop type is climbing day-over-day or after a software update
@@ -73,10 +74,12 @@ docker run -p 8080:80 ph-dashboard
 1. **Start the dev server** (see above)
 2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files
 3. **Add session metadata** (optional) — enter the release version and robot IDs; if robot IDs are left blank they are auto-detected from the data
-4. **Click "Upload & Parse"** — the file is parsed entirely in the browser (nothing is sent to a server)
-5. **View KPIs** — six summary cards appear: total stops, total stop time, average duration, stops per robot, robot with most stops, and most common L2 stop reason
-6. **Browse the stop table** — all stop records are listed with sortable columns (click a header to sort) and dropdown filters for Robot, L1/L2/L3 reason, and Location
-7. **Switch sessions** — use the session dropdown in the header to switch between uploaded sessions, or click "Remove" to delete one
+4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`; unrelated rows are ignored
+5. **Click "Upload & Parse"** — files are parsed entirely in the browser (nothing is sent to a server)
+6. **View patches for a session** — expand the "Patches in this test session" dropdown above KPI cards
+7. **View KPIs** — six summary cards appear: total stops, total stop time, average duration, stops per robot, robot with most stops, and most common L2 stop reason
+8. **Browse the stop table** — all stop records are listed with sortable columns (click a header to sort) and dropdown filters for Robot, L1/L2/L3 reason, and Location
+9. **Switch sessions** — use the session dropdown in the header to switch between uploaded sessions, or click "Remove" to delete one
 
 ---
 
@@ -125,7 +128,7 @@ ProductHealth_Dashboard/
 
 | Phase | Description | Status |
 |---|---|---|
-| Phase 1 | File upload, ODS parsing, summary table, KPIs | Complete |
+| Phase 1 | File upload, ODS parsing, optional patch spreadsheet parsing, session patch dropdown, summary table, KPIs | Complete |
 | Phase 2 | Interactive charts and cross-filtering | Planned |
 | Phase 3 | Spatial heatmap (POSE_X / POSE_Y) | Planned |
 | Phase 4 | Multi-session comparison and trend tracking | Planned |
