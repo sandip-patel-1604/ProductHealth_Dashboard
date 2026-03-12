@@ -19,7 +19,7 @@ const buildGerritPatchUrl = (project: string, patchSet: string) => {
     return null;
   }
 
-  return `https://git.vecnarobotics.local/c/${normalizedProject}/+/${changeNumber}/${changeNumber}${patchSetNumber}`;
+  return `https://git.vecnarobotics.local/c/${normalizedProject}/+/${changeNumber}/${patchSetNumber}`;
 };
 
 function App() {
