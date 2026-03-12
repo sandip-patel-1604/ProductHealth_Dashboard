@@ -42,6 +42,19 @@ function applySort(stops: StopRecord[], sort: SortConfig): StopRecord[] {
   return sorted;
 }
 
+
+function formatPerryLinkLabel(timestamp: string): string {
+  const normalized = timestamp.trim().replace(' ', 'T');
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+
+  if (!match) {
+    return timestamp || 'Open';
+  }
+
+  const [, date, hours, minutes, seconds] = match;
+  return `${date}T${hours}:${minutes}:${seconds ?? '00'}`;
+}
+
 const COLUMNS: { key: keyof StopRecord; label: string }[] = [
   { key: 'robotId', label: 'Robot' },
   { key: 'timestamp', label: 'Timestamp (EST)' },
@@ -189,7 +202,7 @@ export function SummaryTable() {
                       rel="noreferrer"
                       className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2"
                     >
-                      short_perry
+                      {formatPerryLinkLabel(stop.timestamp)}
                     </a>
                   ) : (
                     <span className="text-slate-500">-</span>
