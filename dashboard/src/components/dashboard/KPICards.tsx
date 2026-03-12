@@ -331,6 +331,8 @@ function ReasonDistributionSection({
   data: Array<Record<string, number | string>>;
   reasonKeys: string[];
 }) {
+  const hasExplicitOtherReason = reasonKeys.includes('Other');
+
   return (
     <ChartSection title={title} description={description}>
       <ResponsiveContainer width="100%" height={300}>
@@ -344,7 +346,7 @@ function ReasonDistributionSection({
             <Bar
               key={reason}
               dataKey={reason}
-              name={reason === AGGREGATED_OTHER_REASON_KEY ? 'Other' : reason}
+              name={getReasonLabel(reason, hasExplicitOtherReason)}
               stackId="reasons"
               fill={CHART_COLORS[index % CHART_COLORS.length]}
               radius={index === reasonKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
@@ -367,6 +369,11 @@ const CHART_COLORS = [
 ];
 
 const AGGREGATED_OTHER_REASON_KEY = '__aggregated_other_reason__';
+
+function getReasonLabel(reason: string, hasExplicitOtherReason: boolean) {
+  if (reason !== AGGREGATED_OTHER_REASON_KEY) return reason;
+  return hasExplicitOtherReason ? 'Other (aggregated)' : 'Other';
+}
 
 function buildReasonDistributionByRobot(
   stops: Pick<StopRecord, 'robotId' | 'l2StopReason' | 'l3StopReason'>[],
