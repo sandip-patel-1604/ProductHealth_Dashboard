@@ -43,22 +43,9 @@ function applySort(stops: StopRecord[], sort: SortConfig): StopRecord[] {
 }
 
 
-function formatPerryLinkLabel(timestamp: string): string {
-  const normalized = timestamp.trim().replace(' ', 'T');
-  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-
-  if (!match) {
-    return timestamp || 'Open';
-  }
-
-  const [, date, hours, minutes, seconds] = match;
-  return `${date}T${hours}:${minutes}:${seconds ?? '00'}`;
-}
-
 const COLUMNS: { key: keyof StopRecord; label: string }[] = [
   { key: 'robotId', label: 'Robot' },
   { key: 'timestamp', label: 'Timestamp (EST)' },
-  { key: 'perryLink', label: 'Perry Link' },
   { key: 'l1StopReason', label: 'L1 Reason' },
   { key: 'l2StopReason', label: 'L2 Reason' },
   { key: 'l3StopReason', label: 'L3 Reason' },
@@ -192,9 +179,6 @@ export function SummaryTable() {
               <tr key={stop.id} className="hover:bg-slate-800/70">
                 <td className="px-3 py-2 font-mono">{stop.robotId}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  {stop.timestamp}
-                </td>
-                <td className="px-3 py-2">
                   {stop.perryLink ? (
                     <a
                       href={stop.perryLink}
@@ -202,10 +186,10 @@ export function SummaryTable() {
                       rel="noreferrer"
                       className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2"
                     >
-                      {formatPerryLinkLabel(stop.timestamp)}
+                      {stop.timestamp}
                     </a>
                   ) : (
-                    <span className="text-slate-500">-</span>
+                    stop.timestamp
                   )}
                 </td>
                 <td className="px-3 py-2">{stop.l1StopReason}</td>
