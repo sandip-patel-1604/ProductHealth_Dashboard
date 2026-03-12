@@ -10,6 +10,7 @@ After each overnight test run, robots produce stop reports in `.ods` format. Thi
 
 - **Upload** one or more stop report files for a test session
 - **Attach patch spreadsheets** (`.csv`, `.ods`, `.xlsx`) that describe patch project, patch set, and description
+- **Jump to Gerrit quickly** from each session patch row using the patch set hyperlink
 - **See at a glance** how many stops occurred, which robots stopped most, and how long they were halted
 - **Drill down** by stop type (L1/L2/L3 classification hierarchy), location, robot, or time
 - **Compare across nights** — spot if a stop type is climbing day-over-day or after a software update
@@ -76,7 +77,7 @@ docker run -p 8080:80 ph-dashboard
 3. **Add session metadata** (optional) — enter the release version and robot IDs; if robot IDs are left blank they are auto-detected from the data
 4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`; unrelated rows are ignored
 5. **Click "Upload & Parse"** — files are parsed entirely in the browser (nothing is sent to a server)
-6. **View patches for a session** — expand the "Patches in this test session" dropdown above KPI cards
+6. **View patches for a session** — expand the "Patches in this test session" dropdown above KPI cards and click any patch set to open its Gerrit change in a new tab
 7. **View KPIs** — six summary cards appear: total stops, total stop time, average duration, stops per robot, robot with most stops, and most common L2 stop reason
 8. **Browse the stop table** — all stop records are listed with sortable columns (click a header to sort) and dropdown filters for Robot, L1/L2/L3 reason, and Location
 9. **Switch sessions** — use the session dropdown in the header to switch between uploaded sessions, or click "Remove" to delete one
