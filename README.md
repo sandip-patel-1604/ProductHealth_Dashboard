@@ -74,7 +74,7 @@ docker run -p 8080:80 ph-dashboard
 
 1. **Start the dev server** (see above)
 2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files
-3. **Add session metadata** (optional) — enter the release version and robot IDs; if robot IDs are left blank they are auto-detected from the data
+3. **Add session metadata** — release version is required for manual imports; robot IDs are optional and auto-detected if left blank
 4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`; unrelated rows are ignored
 5. **Click "Upload & Parse"** — files are parsed entirely in the browser (nothing is sent to a server)
 6. **View patches for a session** — expand the "Patches in this test session" dropdown above KPI cards and click any patch set to open its Gerrit change in a new tab
