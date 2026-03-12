@@ -3,6 +3,7 @@ export interface StopRecord {
   id: string;
   robotId: number;
   timestamp: string; // "Logs timestamp EST"
+  perryLink: string; // "Short perry ctrl+click"
   robotIdTimestamp: string; // video filename
   l1StopReason: string;
   l2StopReason: string;

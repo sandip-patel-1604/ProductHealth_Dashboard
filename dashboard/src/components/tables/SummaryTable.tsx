@@ -45,6 +45,7 @@ function applySort(stops: StopRecord[], sort: SortConfig): StopRecord[] {
 const COLUMNS: { key: keyof StopRecord; label: string }[] = [
   { key: 'robotId', label: 'Robot' },
   { key: 'timestamp', label: 'Timestamp (EST)' },
+  { key: 'perryLink', label: 'Perry Link' },
   { key: 'l1StopReason', label: 'L1 Reason' },
   { key: 'l2StopReason', label: 'L2 Reason' },
   { key: 'l3StopReason', label: 'L3 Reason' },
@@ -179,6 +180,20 @@ export function SummaryTable() {
                 <td className="px-3 py-2 font-mono">{stop.robotId}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {stop.timestamp}
+                </td>
+                <td className="px-3 py-2">
+                  {stop.perryLink ? (
+                    <a
+                      href={stop.perryLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-300 hover:text-emerald-200 underline underline-offset-2"
+                    >
+                      {stop.perryLink}
+                    </a>
+                  ) : (
+                    <span className="text-slate-500">-</span>
+                  )}
                 </td>
                 <td className="px-3 py-2">{stop.l1StopReason}</td>
                 <td className="px-3 py-2">{stop.l2StopReason}</td>

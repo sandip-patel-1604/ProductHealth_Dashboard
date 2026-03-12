@@ -62,6 +62,7 @@ function parseRow(row: Record<string, unknown>, index: number): StopRecord {
     id: str(row['id']) || `row-${index}`,
     robotId: num(row['RobotId']),
     timestamp: str(row['Logs timestamp EST']),
+    perryLink: getShortPerryLink(row),
     robotIdTimestamp: str(row['RobotId_timestamp']),
     l1StopReason: str(row['L1_STOP_REASON']),
     l2StopReason: str(row['L2_STOP_REASON']),
@@ -80,6 +81,28 @@ function parseRow(row: Record<string, unknown>, index: number): StopRecord {
     nrvSwVersion: str(row['NRV_SW_VERSION']),
     vrosSwVersion: str(row['VROS_SW_VERSION']),
   };
+}
+
+
+function getShortPerryLink(row: Record<string, unknown>): string {
+  const exact = getValueByHeader(row, 'Short perry ctrl+click');
+  if (exact) return exact;
+
+  for (const [key, value] of Object.entries(row)) {
+    const normalized = normalizeHeader(key);
+    const looksLikeShortPerry =
+      normalized.includes('short') &&
+      normalized.includes('perry') &&
+      (normalized.includes('ctrlclick') || normalized.includes('click'));
+
+    if (!looksLikeShortPerry) {
+      continue;
+    }
+
+    return value != null ? String(value).trim() : '';
+  }
+
+  return '';
 }
 
 function normalizeHeader(header: string): string {
