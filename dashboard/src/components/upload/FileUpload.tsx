@@ -3,6 +3,8 @@ import { parseFilename, parseOdsFile, parsePatchFile } from '../../lib/parser';
 import type { TestSession, SessionMetadata } from '../../lib/types';
 import { useStore } from '../../store/useStore';
 
+const REQUIRE_MANUAL_RELEASE_VERSION = true;
+
 export function FileUpload() {
   const addSession = useStore((s) => s.addSession);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +51,12 @@ export function FileUpload() {
       return;
     }
 
+    const releaseVersion = metadata.releaseVersion.trim();
+    if (REQUIRE_MANUAL_RELEASE_VERSION && !releaseVersion) {
+      setError('Release version is required before importing a test run.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -76,6 +84,7 @@ export function FileUpload() {
           fileMetadata,
           sessionMetadata: {
             ...metadata,
+            releaseVersion,
             robotIds: detectedRobotIds,
             patches,
           },
@@ -160,6 +169,9 @@ export function FileUpload() {
         <div>
           <label className="block text-sm font-medium text-slate-200 mb-1">
             Release Version
+            {REQUIRE_MANUAL_RELEASE_VERSION && (
+              <span className="text-rose-300"> *</span>
+            )}
           </label>
           <input
             type="text"
@@ -170,6 +182,11 @@ export function FileUpload() {
             placeholder="e.g. v2.3.1"
             className="w-full border border-slate-600 bg-slate-950 text-slate-100 rounded-md px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           />
+          {REQUIRE_MANUAL_RELEASE_VERSION && (
+            <p className="mt-1 text-xs text-slate-400">
+              Required for manual imports. Disable this when release version is auto-populated.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-200 mb-1">

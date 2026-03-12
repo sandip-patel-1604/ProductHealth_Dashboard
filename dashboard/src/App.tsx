@@ -5,6 +5,23 @@ import { KPICards } from './components/dashboard/KPICards';
 import { SummaryTable } from './components/tables/SummaryTable';
 import { useStore } from './store/useStore';
 
+const buildGerritPatchUrl = (project: string, patchSet: string) => {
+  const normalizedProject = project.trim().toLowerCase();
+  const normalizedPatchSet = patchSet.trim();
+
+  if (!normalizedProject || !normalizedPatchSet) {
+    return null;
+  }
+
+  const [changeNumber, patchSetNumber] = normalizedPatchSet.split('/');
+
+  if (!changeNumber || !patchSetNumber) {
+    return null;
+  }
+
+  return `https://git.vecnarobotics.local/c/${normalizedProject}/+/${changeNumber}/${patchSetNumber}`;
+};
+
 function App() {
   const activeSessionId = useStore((s) => s.activeSessionId);
   const sessions = useStore((s) => s.sessions);
@@ -88,13 +105,36 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {activePatches.map((patch, index) => (
-                      <tr key={`${patch.project}-${patch.patchSet}-${index}`} className="border-b border-slate-800/80">
-                        <td className="py-2 pr-4 text-slate-200">{patch.project}</td>
-                        <td className="py-2 pr-4 text-slate-300">{patch.patchSet}</td>
-                        <td className="py-2 text-slate-300">{patch.description}</td>
-                      </tr>
-                    ))}
+                    {activePatches.map((patch, index) => {
+                      const gerritPatchUrl = buildGerritPatchUrl(
+                        patch.project,
+                        patch.patchSet,
+                      );
+
+                      return (
+                        <tr
+                          key={`${patch.project}-${patch.patchSet}-${index}`}
+                          className="border-b border-slate-800/80"
+                        >
+                          <td className="py-2 pr-4 text-slate-200">{patch.project}</td>
+                          <td className="py-2 pr-4 text-slate-300">
+                            {gerritPatchUrl ? (
+                              <a
+                                href={gerritPatchUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center rounded-md bg-emerald-600/25 px-2 py-0.5 text-emerald-200 underline decoration-emerald-300/60 underline-offset-2 hover:bg-emerald-500/35 hover:text-emerald-100"
+                              >
+                                {patch.patchSet}
+                              </a>
+                            ) : (
+                              patch.patchSet
+                            )}
+                          </td>
+                          <td className="py-2 text-slate-300">{patch.description}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
