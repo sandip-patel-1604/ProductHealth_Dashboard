@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { parseFilename, parseOdsFile } from '../../lib/parser';
+import { parseFilename, parseOdsFile, parsePatchFile } from '../../lib/parser';
 import type { TestSession, SessionMetadata } from '../../lib/types';
 import { useStore } from '../../store/useStore';
 
@@ -8,10 +8,12 @@ export function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<File[]>([]);
+  const [patchFile, setPatchFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<SessionMetadata>({
     releaseVersion: '',
     robotIds: [],
     notes: '',
+    patches: [],
   });
   const [robotIdsText, setRobotIdsText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,8 @@ export function FileUpload() {
         .map((s) => parseInt(s.trim(), 10))
         .filter((n) => !isNaN(n));
 
+      const patches = patchFile ? await parsePatchFile(patchFile) : [];
+
       for (const file of files) {
         const fileMetadata = parseFilename(file.name);
         const stops = await parseOdsFile(file);
@@ -73,6 +77,7 @@ export function FileUpload() {
           sessionMetadata: {
             ...metadata,
             robotIds: detectedRobotIds,
+            patches,
           },
           stops,
           createdAt: new Date().toISOString(),
@@ -83,7 +88,8 @@ export function FileUpload() {
 
       // Reset form
       setFiles([]);
-      setMetadata({ releaseVersion: '', robotIds: [], notes: '' });
+      setPatchFile(null);
+      setMetadata({ releaseVersion: '', robotIds: [], notes: '', patches: [] });
       setRobotIdsText('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -132,6 +138,21 @@ export function FileUpload() {
             </>
           )}
         </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-200 mb-1">
+          Patch Spreadsheet (optional: .csv, .ods, .xlsx)
+        </label>
+        <input
+          type="file"
+          accept=".csv,.ods,.xlsx,.xls"
+          onChange={(e) => setPatchFile(e.target.files?.[0] ?? null)}
+          className="w-full border border-slate-600 bg-slate-950 text-slate-100 rounded-md px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-950"
+        />
+        {patchFile && (
+          <p className="text-xs text-slate-400 mt-1">Selected patch file: {patchFile.name}</p>
+        )}
       </div>
 
       {/* Metadata fields */}

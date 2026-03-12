@@ -10,6 +10,7 @@ function App() {
   const sessions = useStore((s) => s.sessions);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const [showUpload, setShowUpload] = useState(false);
+  const activePatches = activeSession?.sessionMetadata.patches ?? [];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -69,6 +70,40 @@ function App() {
               {activeSession.sessionMetadata.robotIds.join(', ')}
             </span>
           </div>
+        )}
+
+        {activeSession && (
+          <details className="bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 shadow-lg shadow-slate-950/30">
+            <summary className="cursor-pointer text-sm font-medium text-emerald-200">
+              Patches in this test session ({activePatches.length})
+            </summary>
+            {activePatches.length > 0 ? (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[560px]">
+                  <thead className="text-slate-400 border-b border-slate-700">
+                    <tr>
+                      <th className="py-2 pr-4">Project</th>
+                      <th className="py-2 pr-4">Patch set</th>
+                      <th className="py-2">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activePatches.map((patch, index) => (
+                      <tr key={`${patch.project}-${patch.patchSet}-${index}`} className="border-b border-slate-800/80">
+                        <td className="py-2 pr-4 text-slate-200">{patch.project}</td>
+                        <td className="py-2 pr-4 text-slate-300">{patch.patchSet}</td>
+                        <td className="py-2 text-slate-300">{patch.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-400">
+                No patch spreadsheet was attached to this session.
+              </p>
+            )}
+          </details>
         )}
 
         {/* KPIs */}
