@@ -2,6 +2,9 @@
 
 A React-based dashboard for analyzing overnight robot stop reports. Upload `.ods` spreadsheets from automated test runs and get interactive visualizations of stop counts, durations, stop type distributions, spatial heatmaps, patch context, and multi-session trend tracking across software releases.
 
+**⚠️ DISCLAIMER & WARNING ⚠️**
+> This application uses a local PostgreSQL database inside Docker. If you delete the Docker volume `pg_data` or uninstall Docker, you will lose all uploaded test session data. Do not use this local setup as the sole repository of critical data without setting up database backups.
+
 ---
 
 ## What It Does
@@ -31,113 +34,73 @@ The server name, test start time, and test end time are extracted automatically 
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) — Mac (Intel or Apple Silicon)
-- Docker Engine + docker-compose-plugin — Ubuntu 18.04+
+- Docker Engine + docker-compose-plugin — Ubuntu 18.04 LTS+
 
-No Node.js installation required on your machine. Everything runs inside Docker.
+No Python or Node.js installation is required on your machine. Everything runs securely inside Docker.
 
 ---
 
-## Running Locally (Development)
+## Running Locally
+
+To start the full stack (Frontend, FastAPI Backend, and PostgreSQL Database):
 
 ```bash
 # Clone the repo
 git clone <repo-url>
 cd ProductHealth_Dashboard
 
-# Start the dev server with hot reload
-docker compose up --build
+# Start all services and view URLs
+./start-dev.sh
 ```
 
-Open **http://localhost:5173** in your browser.
-
-Edits to files under `dashboard/src/` are reflected instantly — no container restart needed.
+- **Frontend UI:** Open [http://localhost:5173](http://localhost:5173) in your browser.
+- **Backend API Docs:** Open [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
 
 ### Stop the server
 
 ```bash
-docker compose down
+./stop.sh
 ```
-
----
-
-## Production Build
-
-```bash
-docker build --target prod -t ph-dashboard ./dashboard
-docker run -p 8080:80 ph-dashboard
-# Open http://localhost:8080
-```
+*(Note: Stopping the server does not delete your data. It is safely stored in a docker volume `pg_data`)*
 
 ---
 
 ## How to Use
 
-1. **Start the dev server** (see above)
-2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files
-3. **Add session metadata** — release version is required for manual imports; robot IDs are optional and auto-detected if left blank
-4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`; unrelated rows are ignored
-5. **Click "Upload & Parse"** — files are parsed entirely in the browser (nothing is sent to a server)
-6. **View patches for a session** — expand the "Patches in this test session" dropdown above KPI cards and click any patch set to open its Gerrit change in a new tab
-7. **View KPIs** — six summary cards appear: total stops, total stop time, average duration, stops per robot, robot with most stops, and most common L2 stop reason
-8. **Browse the stop table** — all stop records are listed with sortable columns (click a header to sort) and dropdown filters for Robot, L1/L2/L3 reason, and Location
-9. **Switch sessions** — use the session dropdown in the header to switch between uploaded sessions, or click "Remove" to delete one
+1. **Start the docker server** (see above).
+2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files in the UI.
+3. **Add session metadata** — Release version is highly recommended to track software baselines.
+4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`.
+5. **Click "Upload & Parse"** — Data is parsed by the backend and saved persistently to the PostgreSQL database.
+6. **Analyze Data** — Browse KPIs, view Patches, and filter through the Stop Records table.
+7. **Switch sessions** — Use the session dropdown in the header to switch between uploaded historical sessions.
 
 ---
 
-## Project Structure
+## Project Structure & Architecture
 
 ```
 ProductHealth_Dashboard/
-├── dashboard/                      # Vite + React 19 + TypeScript app
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── dashboard/          # KPI summary cards
-│   │   │   ├── layout/            # Header with session selector
-│   │   │   ├── tables/            # Sortable/filterable stop record table
-│   │   │   └── upload/            # File upload + session metadata form
-│   │   ├── lib/
-│   │   │   ├── types.ts           # TypeScript interfaces (StopRecord, TestSession, etc.)
-│   │   │   └── parser.ts          # ODS file parsing + filename metadata extraction
-│   │   ├── store/
-│   │   │   └── useStore.ts        # Zustand store (sessions, filters, sort state)
-│   │   ├── App.tsx                # Main layout
-│   │   └── main.tsx               # React entry point
-│   └── Dockerfile                 # Multi-stage: dev (hot reload) + prod (nginx)
-├── docker-compose.yml             # Orchestrates services
-├── PLAN.md                        # Phased implementation roadmap
-└── CLAUDE.md                      # AI assistant guidance
+├── dashboard/                      # Vite + React 19 Frontend
+│   ├── src/                        # Components, hooks, Zustand store connecting to API
+│   └── Dockerfile                  # Exposes frontend on port 5173
+├── api/                            # FastAPI (Python) Backend
+│   ├── main.py                     # API Routes (GET/POST/DELETE)
+│   ├── models.py                   # SQLAlchemy Postgres Schemas
+│   ├── schemas.py                  # Pydantic validation schemas
+│   └── Dockerfile                  # Exposes API on port 8000
+├── docker-compose.yml             # Orchestrates ui, api, and db
+└── README.md
 ```
-
----
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19 + TypeScript |
-| Build tool | Vite 7 |
-| Styling | Tailwind CSS v4 |
-| Charts | Recharts |
-| ODS parsing | SheetJS (xlsx) — fully client-side |
-| State | Zustand |
-| Container | Docker + docker-compose |
-| Prod server | nginx |
-
----
-
-## Current Status
-
-| Phase | Description | Status |
-|---|---|---|
-| Phase 1 | File upload, ODS parsing, optional patch spreadsheet parsing, session patch dropdown, summary table, KPIs | Complete |
-| Phase 2 | Interactive charts and cross-filtering | Planned |
-| Phase 3 | Spatial heatmap (POSE_X / POSE_Y) | Planned |
-| Phase 4 | Multi-session comparison and trend tracking | Planned |
-| Phase 5 | Export, report generation, deployment | Planned |
-
-See [PLAN.md](PLAN.md) for full details.
-
----
+| **Frontend** | React 19 + TypeScript (Vite, TailwindCSS, Zustand) |
+| **Backend API** | Python + FastAPI |
+| **Database** | PostgreSQL 16 (SQLAlchemy ORM) |
+| **Containerization** | Docker + Docker Compose |
 
 ## License
 
