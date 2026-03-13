@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/layout/Header';
 import { FileUpload } from './components/upload/FileUpload';
 import { KPICards } from './components/dashboard/KPICards';
@@ -23,7 +23,12 @@ const buildGerritPatchUrl = (project: string, patchSet: string) => {
 };
 
 function App() {
+  const fetchSessions = useStore((s) => s.fetchSessions);
   const activeSessionId = useStore((s) => s.activeSessionId);
+  
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
   const sessions = useStore((s) => s.sessions);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const [showUpload, setShowUpload] = useState(false);

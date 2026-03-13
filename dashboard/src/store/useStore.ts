@@ -1,57 +1,114 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { TestSession, FilterState, SortConfig } from '../lib/types';
 import { EMPTY_FILTERS } from '../lib/types';
+
+const API_URL = 'http://localhost:8080/api';
 
 interface DashboardState {
   sessions: TestSession[];
   activeSessionId: string | null;
   filters: FilterState;
   sort: SortConfig;
+  isLoading: boolean;
+  error: string | null;
 
   // Actions
-  addSession: (session: TestSession) => void;
-  removeSession: (id: string) => void;
+  fetchSessions: () => Promise<void>;
+  addSession: (session: TestSession) => Promise<void>;
+  removeSession: (id: string) => Promise<void>;
   setActiveSession: (id: string | null) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
   setSort: (sort: SortConfig) => void;
 }
 
-export const useStore = create<DashboardState>()(
-  persist(
-    (set) => ({
-      sessions: [],
-      activeSessionId: null,
-      filters: { ...EMPTY_FILTERS },
-      sort: { key: 'timestamp', direction: 'asc' },
+export const useStore = create<DashboardState>((set, get) => ({
+  sessions: [],
+  activeSessionId: null,
+  filters: { ...EMPTY_FILTERS },
+  sort: { key: 'timestamp', direction: 'asc' },
+  isLoading: false,
+  error: null,
 
-      addSession: (session) =>
-        set((state) => ({
-          sessions: [...state.sessions, session],
-          activeSessionId: session.id,
-        })),
-
-      removeSession: (id) =>
-        set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== id),
-          activeSessionId:
-            state.activeSessionId === id ? null : state.activeSessionId,
-        })),
-
-      setActiveSession: (id) => set({ activeSessionId: id }),
-
-      setFilters: (partial) =>
-        set((state) => ({
-          filters: { ...state.filters, ...partial },
-        })),
-
-      resetFilters: () => set({ filters: { ...EMPTY_FILTERS } }),
-
-      setSort: (sort) => set({ sort }),
-    }),
-    {
-      name: 'product-health-dashboard',
+  fetchSessions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/sessions`);
+      if (!response.ok) throw new Error('Failed to fetch sessions');
+      const sessions = await response.json();
+      
+      set({ 
+        sessions, 
+        isLoading: false,
+        // If we have an active session but it no longer exists, reset it
+        activeSessionId: get().activeSessionId && sessions.find((s: TestSession) => s.id === get().activeSessionId) 
+          ? get().activeSessionId 
+          : (sessions.length > 0 ? sessions[0].id : null)
+      });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
     }
-  )
-);
+  },
+
+  addSession: async (session) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(session),
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Failed to save session');
+      }
+      
+      const savedSession = await response.json();
+      
+      set((state) => ({
+        sessions: [...state.sessions, savedSession],
+        activeSessionId: savedSession.id,
+        isLoading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      throw err; // Re-throw to let the UI handle the error (e.g. show toast)
+    }
+  },
+
+  removeSession: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/sessions/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete session');
+      
+      set((state) => {
+        const remaining = state.sessions.filter((s) => s.id !== id);
+        return {
+          sessions: remaining,
+          activeSessionId: state.activeSessionId === id 
+            ? (remaining.length > 0 ? remaining[remaining.length - 1].id : null) 
+            : state.activeSessionId,
+          isLoading: false,
+        };
+      });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+    }
+  },
+
+  setActiveSession: (id) => set({ activeSessionId: id }),
+
+  setFilters: (partial) =>
+    set((state) => ({
+      filters: { ...state.filters, ...partial },
+    })),
+
+  resetFilters: () => set({ filters: { ...EMPTY_FILTERS } }),
+
+  setSort: (sort) => set({ sort }),
+}));
