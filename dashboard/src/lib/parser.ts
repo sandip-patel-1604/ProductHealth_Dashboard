@@ -50,7 +50,11 @@ export function parseFilename(filename: string): FileMetadata {
 }
 
 /** Parse a single row from the spreadsheet into a StopRecord */
-function parseRow(row: Record<string, unknown>, index: number): StopRecord {
+function parseRow(
+  row: Record<string, unknown>,
+  index: number,
+  playbackUrl: string,
+): StopRecord {
   const str = (v: unknown) => (v != null ? String(v) : '');
   const num = (v: unknown) => {
     const n = Number(v);
@@ -62,6 +66,7 @@ function parseRow(row: Record<string, unknown>, index: number): StopRecord {
     id: str(row['id']) || `row-${index}`,
     robotId: num(row['RobotId']),
     timestamp: str(row['Logs timestamp EST']),
+    playbackUrl,
     robotIdTimestamp: str(row['RobotId_timestamp']),
     l1StopReason: str(row['L1_STOP_REASON']),
     l2StopReason: str(row['L2_STOP_REASON']),
@@ -80,6 +85,25 @@ function parseRow(row: Record<string, unknown>, index: number): StopRecord {
     nrvSwVersion: str(row['NRV_SW_VERSION']),
     vrosSwVersion: str(row['VROS_SW_VERSION']),
   };
+}
+
+function extractHyperlinkUrl(cell: XLSX.CellObject | undefined): string {
+  if (!cell) {
+    return '';
+  }
+
+  if (cell.l?.Target) {
+    return String(cell.l.Target);
+  }
+
+  if (typeof cell.f === 'string') {
+    const match = cell.f.match(/^HYPERLINK\((?:"|')([^"']+)(?:"|')/i);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return '';
 }
 
 function normalizeHeader(header: string): string {
@@ -132,9 +156,37 @@ export async function parsePatchFile(file: File): Promise<PatchRecord[]> {
 /** Parse an .ods File object and return the stop records */
 export async function parseOdsFile(file: File): Promise<StopRecord[]> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
-  return rows.map((row, i) => parseRow(row, i));
+
+  const range = XLSX.utils.decode_range(sheet['!ref'] ?? 'A1:A1');
+  let shortPerryColumn: number | null = null;
+
+  for (let c = range.s.c; c <= range.e.c; c += 1) {
+    const headerAddress = XLSX.utils.encode_cell({ r: range.s.r, c });
+    const headerCell = sheet[headerAddress] as XLSX.CellObject | undefined;
+    const headerValue = normalizeHeader(String(headerCell?.v ?? ''));
+
+    if (headerValue === normalizeHeader('Short perry ctrl+click')) {
+      shortPerryColumn = c;
+      break;
+    }
+  }
+
+  return rows.map((row, i) => {
+    const sheetRow = i + 2; // row 1 is header
+    const shortPerryCellAddress =
+      shortPerryColumn !== null
+        ? XLSX.utils.encode_cell({ r: sheetRow - 1, c: shortPerryColumn })
+        : '';
+    const shortPerryCell =
+      shortPerryCellAddress
+        ? (sheet[shortPerryCellAddress] as XLSX.CellObject | undefined)
+        : undefined;
+    const playbackUrl = extractHyperlinkUrl(shortPerryCell);
+
+    return parseRow(row, i, playbackUrl);
+  });
 }

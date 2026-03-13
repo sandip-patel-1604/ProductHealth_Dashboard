@@ -178,7 +178,18 @@ export function SummaryTable() {
               <tr key={stop.id} className="hover:bg-slate-800/70">
                 <td className="px-3 py-2 font-mono">{stop.robotId}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  {stop.timestamp}
+                  {stop.playbackUrl ? (
+                    <a
+                      href={stop.playbackUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-300 underline decoration-emerald-400/70 underline-offset-2 hover:text-emerald-200"
+                    >
+                      {stop.timestamp}
+                    </a>
+                  ) : (
+                    stop.timestamp
+                  )}
                 </td>
                 <td className="px-3 py-2">{stop.l1StopReason}</td>
                 <td className="px-3 py-2">{stop.l2StopReason}</td>
