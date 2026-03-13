@@ -3,6 +3,7 @@ export interface StopRecord {
   id: string;
   robotId: number;
   timestamp: string; // "Logs timestamp EST"
+  playbackUrl: string;
   robotIdTimestamp: string; // video filename
   l1StopReason: string;
   l2StopReason: string;
