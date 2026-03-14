@@ -92,10 +92,12 @@ export function FileUpload() {
           createdAt: new Date().toISOString(),
         };
 
-        addSession(session);
+        // Await so any backend rejection (validation, DB error, duplicate session)
+        // is caught by the outer catch block and shown to the user.
+        await addSession(session);
       }
 
-      // Reset form
+      // Reset form only after ALL sessions have been saved successfully.
       setFiles([]);
       setPatchFile(null);
       setMetadata({ releaseVersion: '', robotIds: [], notes: '', patches: [] });

@@ -88,6 +88,8 @@ ProductHealth_Dashboard/
 │   ├── main.py                     # API Routes (GET/POST/DELETE)
 │   ├── models.py                   # SQLAlchemy Postgres Schemas
 │   ├── schemas.py                  # Pydantic validation schemas
+│   ├── tests/                      # pytest test suite (runs against SQLite, no Docker needed)
+│   │   └── test_upload_error_handling.py
 │   └── Dockerfile                  # Exposes API on port 8000
 ├── docker-compose.yml             # Orchestrates ui, api, and db
 └── README.md
@@ -101,6 +103,34 @@ ProductHealth_Dashboard/
 | **Backend API** | Python + FastAPI |
 | **Database** | PostgreSQL 16 (SQLAlchemy ORM) |
 | **Containerization** | Docker + Docker Compose |
+
+## Testing (Backend API)
+
+Tests run against an in-process SQLite database — no Docker or Postgres required.
+
+```bash
+cd api
+
+# One-time setup
+python3 -m venv .venv
+.venv/bin/pip install fastapi sqlalchemy pydantic httpx pytest pytest-asyncio
+
+# Run tests
+.venv/bin/python -m pytest tests/ -v
+```
+
+| Test | What it verifies |
+|---|---|
+| `test_first_upload_succeeds` | New session POST returns HTTP 200 |
+| `test_duplicate_session_returns_400` | Duplicate session POST returns HTTP 400 (error surfaces to UI) |
+| `test_session_with_multiple_stops_accepted` | Multi-stop sessions are fully accepted |
+
+> [!NOTE]
+> The backend correctly returns HTTP 400 on duplicate session IDs. The frontend
+> `await addSession()` call catches this and displays the error banner rather than
+> silently failing (P2 fix).
+
+---
 
 ## License
 
