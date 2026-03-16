@@ -35,16 +35,15 @@ export const useStore = create<DashboardState>((set, get) => ({
     try {
       const response = await fetch(`${API_URL}/sessions`);
       if (!response.ok) throw new Error('Failed to fetch sessions');
-      const sessions: TestSession[] = await response.json();
-      set({
-        sessions,
+      const sessions = await response.json();
+      
+      set({ 
+        sessions, 
         isLoading: false,
-        activeSessionId:
-          get().activeSessionId && sessions.find((s) => s.id === get().activeSessionId)
-            ? get().activeSessionId
-            : sessions.length > 0
-              ? sessions[0].id
-              : null,
+        // If we have an active session but it no longer exists, reset it
+        activeSessionId: get().activeSessionId && sessions.find((s: TestSession) => s.id === get().activeSessionId) 
+          ? get().activeSessionId 
+          : (sessions.length > 0 ? sessions[0].id : null)
       });
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
@@ -59,13 +58,14 @@ export const useStore = create<DashboardState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session),
       });
-
+      
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await response.json();
         throw new Error(errData.detail || 'Failed to save session');
       }
-
-      const savedSession: TestSession = await response.json();
+      
+      const savedSession = await response.json();
+      
       set((state) => ({
         sessions: [...state.sessions, savedSession],
         activeSessionId: savedSession.id,
@@ -73,7 +73,7 @@ export const useStore = create<DashboardState>((set, get) => ({
       }));
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
-      throw err;
+      throw err; // Re-throw to let the UI handle the error (e.g. show toast)
     }
   },
 
@@ -83,19 +83,16 @@ export const useStore = create<DashboardState>((set, get) => ({
       const response = await fetch(`${API_URL}/sessions/${id}`, {
         method: 'DELETE',
       });
-
+      
       if (!response.ok) throw new Error('Failed to delete session');
-
+      
       set((state) => {
         const remaining = state.sessions.filter((s) => s.id !== id);
         return {
           sessions: remaining,
-          activeSessionId:
-            state.activeSessionId === id
-              ? remaining.length > 0
-                ? remaining[remaining.length - 1].id
-                : null
-              : state.activeSessionId,
+          activeSessionId: state.activeSessionId === id 
+            ? (remaining.length > 0 ? remaining[remaining.length - 1].id : null) 
+            : state.activeSessionId,
           isLoading: false,
         };
       });
