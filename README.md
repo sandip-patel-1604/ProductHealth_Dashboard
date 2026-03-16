@@ -2,9 +2,6 @@
 
 A React-based dashboard for analyzing overnight robot stop reports. Upload `.ods` spreadsheets from automated test runs and get interactive visualizations of stop counts, durations, stop type distributions, spatial heatmaps, patch context, and multi-session trend tracking across software releases.
 
-**⚠️ DISCLAIMER & WARNING ⚠️**
-> This application uses a local PostgreSQL database inside Docker. If you delete the Docker volume `pg_data` or uninstall Docker, you will lose all uploaded test session data. Do not use this local setup as the sole repository of critical data without setting up database backups.
-
 ---
 
 ## What It Does
@@ -17,7 +14,6 @@ After each overnight test run, robots produce stop reports in `.ods` format. Thi
 - **See at a glance** how many stops occurred, which robots stopped most, and how long they were halted
 - **Drill down** by stop type (L1/L2/L3 classification hierarchy), location, robot, or time
 - **Compare across nights** — spot if a stop type is climbing day-over-day or after a software update
-- **View stop hotspots** on a 2D floor map using robot coordinates (POSE_X / POSE_Y)
 
 ### Stop Report File Format
 
@@ -33,102 +29,72 @@ The server name, test start time, and test end time are extracted automatically 
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — Mac (Intel or Apple Silicon)
-- Docker Engine + docker-compose-plugin — Ubuntu 18.04 LTS+
-
-No Python or Node.js installation is required on your machine. Everything runs securely inside Docker.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac) or Docker Engine + docker-compose-plugin (Ubuntu 18.04+)
+- No Node.js installation required — everything runs inside Docker
 
 ---
 
 ## Running Locally
 
-To start the full stack (Frontend, FastAPI Backend, and PostgreSQL Database):
-
 ```bash
-# Clone the repo
 git clone <repo-url>
 cd ProductHealth_Dashboard
 
-# Start all services and view URLs
 ./start-dev.sh
+# Dashboard: http://localhost:5173
 ```
 
-- **Frontend UI:** Open [http://localhost:5173](http://localhost:5173) in your browser.
-- **Backend API Docs:** Open [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
+Edits to files in `dashboard/src/` are reflected instantly in the browser (Vite HMR).
 
-### Stop the server
+### Stop
 
 ```bash
 ./stop.sh
 ```
-*(Note: Stopping the server does not delete your data. It is safely stored in a docker volume `pg_data`)*
 
 ---
 
 ## How to Use
 
-1. **Start the docker server** (see above).
-2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files in the UI.
-3. **Add session metadata** — Release version is highly recommended to track software baselines.
+1. **Start the Docker server** (see above).
+2. **Upload a stop report** — drag-and-drop or click the upload zone to select one or more `.ods` files.
+3. **Add session metadata** — Release version is required to track software baselines.
 4. **Attach a patch spreadsheet** (optional) — include rows with `Project`, `Patch set`, and `Description`.
-5. **Click "Upload & Parse"** — Data is parsed by the backend and saved persistently to the PostgreSQL database.
+5. **Click "Upload & Parse"** — Data is parsed client-side and stored in your browser (localStorage).
 6. **Analyze Data** — Browse KPIs, view Patches, and filter through the Stop Records table.
-7. **Switch sessions** — Use the session dropdown in the header to switch between uploaded historical sessions.
+7. **Switch sessions** — Use the session dropdown in the header to switch between uploaded sessions.
 
 ---
 
-## Project Structure & Architecture
+## Project Structure
 
 ```
 ProductHealth_Dashboard/
 ├── dashboard/                      # Vite + React 19 Frontend
-│   ├── src/                        # Components, hooks, Zustand store connecting to API
-│   └── Dockerfile                  # Exposes frontend on port 5173
-├── api/                            # FastAPI (Python) Backend
-│   ├── main.py                     # API Routes (GET/POST/DELETE)
-│   ├── models.py                   # SQLAlchemy Postgres Schemas
-│   ├── schemas.py                  # Pydantic validation schemas
-│   ├── tests/                      # pytest test suite (runs against SQLite, no Docker needed)
-│   │   └── test_upload_error_handling.py
-│   └── Dockerfile                  # Exposes API on port 8000
-├── docker-compose.yml             # Orchestrates ui, api, and db
-└── README.md
+│   ├── src/
+│   │   ├── components/             # UI components (charts, tables, filters, upload)
+│   │   ├── lib/                    # ODS parser, types
+│   │   ├── store/                  # Zustand state store (localStorage persistence)
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── Dockerfile                  # Multi-stage: dev (hot reload) + prod (nginx)
+│   └── package.json
+├── docker-compose.yml              # Dashboard service
+├── start-dev.sh
+├── stop.sh
+├── PLAN.md                         # Phased implementation roadmap
+├── CLAUDE.md                       # AI assistant conventions
+└── LICENSE
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19 + TypeScript (Vite, TailwindCSS, Zustand) |
-| **Backend API** | Python + FastAPI |
-| **Database** | PostgreSQL 16 (SQLAlchemy ORM) |
-| **Containerization** | Docker + Docker Compose |
-
-## Testing (Backend API)
-
-Tests run against an in-process SQLite database — no Docker or Postgres required.
-
-```bash
-cd api
-
-# One-time setup
-python3 -m venv .venv
-.venv/bin/pip install fastapi sqlalchemy pydantic httpx pytest pytest-asyncio
-
-# Run tests
-.venv/bin/python -m pytest tests/ -v
-```
-
-| Test | What it verifies |
-|---|---|
-| `test_first_upload_succeeds` | New session POST returns HTTP 200 |
-| `test_duplicate_session_returns_400` | Duplicate session POST returns HTTP 400 (error surfaces to UI) |
-| `test_session_with_multiple_stops_accepted` | Multi-stop sessions are fully accepted |
-
-> [!NOTE]
-> The backend correctly returns HTTP 400 on duplicate session IDs. The frontend
-> `await addSession()` call catches this and displays the error banner rather than
-> silently failing (P2 fix).
+| Frontend | React 19 + TypeScript (Vite, TailwindCSS, Zustand, Recharts) |
+| Data parsing | SheetJS (xlsx) — client-side ODS parsing |
+| State persistence | Zustand persist middleware (localStorage) |
+| Containerization | Docker + Docker Compose |
 
 ---
 

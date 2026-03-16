@@ -1,1 +1,3 @@
 .agent/artifacts/
+__pycache__/
+*.pyc

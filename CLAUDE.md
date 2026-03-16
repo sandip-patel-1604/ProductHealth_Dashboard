@@ -12,7 +12,7 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 
 ## Repository State
 
-- **Status:** Phase 1 in progress — Docker + Vite scaffold complete
+- **Status:** Clean scaffold — starting fresh
 - **License:** MIT
 - **Primary branch:** `master`
 
@@ -47,12 +47,12 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 | Concern | Decision |
 |---|---|
 | Frontend framework | React 19 + TypeScript (Vite) |
-| Backend language / framework | TBD (API service planned, stub in docker-compose) |
-| Database | PostgreSQL (planned — stub in docker-compose) |
+| Backend language / framework | TBD |
+| Database | TBD |
 | Auth mechanism | TBD |
-| ODS parsing | SheetJS (xlsx) — client-side, no upload to server |
-| State management | Zustand |
-| Charts | Recharts |
+| ODS parsing | TBD |
+| State management | TBD |
+| Charts | TBD |
 | Styling | Tailwind CSS v4 |
 | Environment isolation | Docker + docker-compose (works on Mac + Ubuntu 18.04+) |
 | Deployment / hosting | Static site via nginx (prod Docker stage) |
