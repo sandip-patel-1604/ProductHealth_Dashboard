@@ -1,13 +1,53 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: product_health
+      POSTGRES_USER: ph_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ph_dev_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ph_user -d product_health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .                    # root context so it can access shared/
+      dockerfile: api/Dockerfile
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api/src:/app/api/src
+      - ./shared/src:/app/shared/src
+    environment:
+      DATABASE_URL: postgresql://ph_user:${DB_PASSWORD:-ph_dev_pass}@db:5432/product_health
+      NODE_ENV: development
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   dashboard:
     build:
       context: ./dashboard
-      target: dev          # use the dev stage (hot reload)
+      target: dev                   # use the dev stage (hot reload)
     ports:
       - "5173:5173"
     volumes:
-      - ./dashboard:/app        # live source mount — edits reflect instantly
-      - /app/node_modules       # anonymous volume: keep container's node_modules
+      - ./dashboard:/app            # live source mount — edits reflect instantly
+      - /app/node_modules           # anonymous volume: keep container's node_modules
     environment:
       - NODE_ENV=development
+    depends_on:
+      - api
     restart: unless-stopped
+
+volumes:
+  pg_data:

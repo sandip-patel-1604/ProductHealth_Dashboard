@@ -9,73 +9,17 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { StopRecord } from '../../lib/types';
 import { useStore } from '../../store/useStore';
+import { useKPIs, useStopsByRobot, useReasonDistribution } from '../../hooks/useAggregations';
 
 export function KPICards() {
-  const sessions = useStore((s) => s.sessions);
   const activeSessionId = useStore((s) => s.activeSessionId);
+  const { data: kpis } = useKPIs(activeSessionId);
   const [modalOpen, setModalOpen] = useState(false);
   const [closingModal, setClosingModal] = useState(false);
   const [cardOrigin, setCardOrigin] = useState<DOMRect | null>(null);
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const stops = activeSession?.stops;
-  const stableStops = useMemo(() => stops ?? [], [stops]);
 
-  const kpis = useMemo(() => {
-    if (stableStops.length === 0) return null;
-
-    const totalStops = stableStops.length;
-    const totalDuration = stableStops.reduce((sum, s) => sum + s.stopDuration, 0);
-    const avgDuration = totalDuration / totalStops;
-
-    const robotIds = [...new Set(stableStops.map((s) => s.robotId))];
-    const stopsPerRobot = totalStops / robotIds.length;
-
-    // Robot with most stops
-    const robotCounts = new Map<number, number>();
-    for (const s of stableStops) {
-      robotCounts.set(s.robotId, (robotCounts.get(s.robotId) ?? 0) + 1);
-    }
-    let worstRobot = robotIds[0];
-    let worstCount = 0;
-    for (const [id, count] of robotCounts) {
-      if (count > worstCount) {
-        worstRobot = id;
-        worstCount = count;
-      }
-    }
-
-    // Most common L2 reason
-    const l2Counts = new Map<string, number>();
-    for (const s of stableStops) {
-      l2Counts.set(s.l2StopReason, (l2Counts.get(s.l2StopReason) ?? 0) + 1);
-    }
-    let topL2 = '';
-    let topL2Count = 0;
-    for (const [reason, count] of l2Counts) {
-      if (count > topL2Count) {
-        topL2 = reason;
-        topL2Count = count;
-      }
-    }
-
-    return {
-      totalStops,
-      totalDuration,
-      avgDuration,
-      robotCount: robotIds.length,
-      stopsPerRobot,
-      worstRobot,
-      worstCount,
-      topL2,
-      topL2Count,
-    };
-  }, [stableStops]);
-
-  if (!kpis) {
-    return null;
-  }
+  if (!kpis) return null;
 
   const openBreakdownModal = (event: MouseEvent<HTMLButtonElement>) => {
     setCardOrigin(event.currentTarget.getBoundingClientRect());
@@ -94,18 +38,9 @@ export function KPICards() {
 
   const cards = [
     { label: 'Total Stops', value: kpis.totalStops },
-    {
-      label: 'Total Stop Time',
-      value: formatDuration(kpis.totalDuration),
-    },
-    {
-      label: 'Avg Duration',
-      value: `${kpis.avgDuration.toFixed(1)}s`,
-    },
-    {
-      label: 'Stops / Robot',
-      value: kpis.stopsPerRobot.toFixed(1),
-    },
+    { label: 'Total Stop Time', value: formatDuration(kpis.totalDuration) },
+    { label: 'Avg Duration', value: `${kpis.avgDuration.toFixed(1)}s` },
+    { label: 'Stops / Robot', value: kpis.stopsPerRobot.toFixed(1) },
     {
       label: 'Most Stops',
       value: `Robot ${kpis.worstRobot}`,
@@ -132,15 +67,9 @@ export function KPICards() {
               className="rounded-xl p-3 border shadow-md text-left transition-transform hover:-translate-y-0.5 cursor-pointer bg-slate-900/90 border-slate-700 shadow-slate-950/30 hover:border-emerald-400/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
             >
               <p className="text-xs text-slate-400 mb-1">{card.label}</p>
-              <p className="text-lg font-semibold text-slate-100 truncate">
-                {card.value}
-              </p>
-              {card.sub && (
-                <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>
-              )}
-              <p className="mt-2 text-[11px] text-emerald-300/90">
-                Open interactive bar charts ↗
-              </p>
+              <p className="text-lg font-semibold text-slate-100 truncate">{card.value}</p>
+              {card.sub && <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>}
+              <p className="mt-2 text-[11px] text-emerald-300/90">Open interactive bar charts ↗</p>
             </button>
           );
         }
@@ -155,19 +84,15 @@ export function KPICards() {
             }`}
           >
             <p className="text-xs text-slate-400 mb-1">{card.label}</p>
-            <p className="text-lg font-semibold text-slate-100 truncate">
-              {card.value}
-            </p>
-            {card.sub && (
-              <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>
-            )}
+            <p className="text-lg font-semibold text-slate-100 truncate">{card.value}</p>
+            {card.sub && <p className="text-xs text-slate-400 mt-0.5">{card.sub}</p>}
           </div>
         );
       })}
 
       {modalOpen && (
         <RobotStopsBreakdownModal
-          stops={stableStops}
+          sessionId={activeSessionId!}
           origin={cardOrigin}
           isClosing={closingModal}
           onClose={closeBreakdownModal}
@@ -178,51 +103,37 @@ export function KPICards() {
 }
 
 function RobotStopsBreakdownModal({
-  stops,
+  sessionId,
   origin,
   isClosing,
   onClose,
 }: {
-  stops: Pick<StopRecord, 'robotId' | 'l2StopReason' | 'l3StopReason'>[];
+  sessionId: string;
   origin: DOMRect | null;
   isClosing: boolean;
   onClose: () => void;
 }) {
+  const { data: stopsByRobot = [] } = useStopsByRobot(sessionId);
+  const { data: l2Raw = [] } = useReasonDistribution(sessionId, 'l2');
+  const { data: l3Raw = [] } = useReasonDistribution(sessionId, 'l3');
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key === 'Escape') onClose();
     };
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const robotCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const stop of stops) {
-      counts.set(stop.robotId, (counts.get(stop.robotId) ?? 0) + 1);
-    }
-
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([robotId, count]) => ({ robot: `Robot ${robotId}`, count }));
-  }, [stops]);
-
-  const l2Data = useMemo(
-    () => buildReasonDistributionByRobot(stops, 'l2StopReason'),
-    [stops],
-  );
-  const l3Data = useMemo(
-    () => buildReasonDistributionByRobot(stops, 'l3StopReason'),
-    [stops],
+  const robotCounts = useMemo(
+    () => stopsByRobot.map((r) => ({ robot: `Robot ${r.robotId}`, count: r.count })),
+    [stopsByRobot]
   );
 
-  const transitionClasses = isClosing
-    ? 'opacity-0 scale-[0.18]'
-    : 'opacity-100 scale-100';
+  const l2Data = useMemo(() => buildDistributionFromApi(l2Raw), [l2Raw]);
+  const l3Data = useMemo(() => buildDistributionFromApi(l3Raw), [l3Raw]);
 
+  const transitionClasses = isClosing ? 'opacity-0 scale-[0.18]' : 'opacity-100 scale-100';
   const fromCardTranslate = origin
     ? {
         x: origin.x + origin.width / 2 - window.innerWidth / 2,
@@ -238,7 +149,6 @@ function RobotStopsBreakdownModal({
         onClick={onClose}
         aria-label="Close stop breakdown"
       />
-
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8 pointer-events-none">
         <div
           className={`pointer-events-auto w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border border-emerald-300/25 bg-slate-900/95 p-5 md:p-7 shadow-2xl shadow-emerald-950/40 transition-all duration-350 ${transitionClasses}`}
@@ -268,10 +178,7 @@ function RobotStopsBreakdownModal({
           </div>
 
           <section className="space-y-6">
-            <ChartSection
-              title="Total stops by robot"
-              description="Hover a bar to inspect precise stop counts."
-            >
+            <ChartSection title="Total stops by robot" description="Hover a bar to inspect precise stop counts.">
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={robotCounts}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -359,13 +266,7 @@ function ReasonDistributionSection({
 }
 
 const CHART_COLORS = [
-  '#34d399',
-  '#22d3ee',
-  '#818cf8',
-  '#f472b6',
-  '#f59e0b',
-  '#a3e635',
-  '#fb7185',
+  '#34d399', '#22d3ee', '#818cf8', '#f472b6', '#f59e0b', '#a3e635', '#fb7185',
 ];
 
 const AGGREGATED_OTHER_REASON_KEY = '__aggregated_other_reason__';
@@ -375,15 +276,15 @@ function getReasonLabel(reason: string, hasExplicitOtherReason: boolean) {
   return hasExplicitOtherReason ? 'Other (aggregated)' : 'Other';
 }
 
-function buildReasonDistributionByRobot(
-  stops: Pick<StopRecord, 'robotId' | 'l2StopReason' | 'l3StopReason'>[],
-  field: 'l2StopReason' | 'l3StopReason',
+/** Transform API reason distribution data into Recharts-compatible format */
+function buildDistributionFromApi(
+  raw: Array<{ robotId: number; reason: string; count: number }>
 ) {
+  // Count global occurrences per reason
   const globalReasonCounts = new Map<string, number>();
-
-  for (const stop of stops) {
-    const reason = stop[field] || 'unknown';
-    globalReasonCounts.set(reason, (globalReasonCounts.get(reason) ?? 0) + 1);
+  for (const row of raw) {
+    const reason = row.reason || 'unknown';
+    globalReasonCounts.set(reason, (globalReasonCounts.get(reason) ?? 0) + row.count);
   }
 
   const sortedReasons = [...globalReasonCounts.entries()]
@@ -395,19 +296,14 @@ function buildReasonDistributionByRobot(
 
   const byRobot = new Map<number, Record<string, number | string>>();
 
-  for (const stop of stops) {
-    if (!byRobot.has(stop.robotId)) {
-      byRobot.set(stop.robotId, { robot: `Robot ${stop.robotId}` });
+  for (const row of raw) {
+    if (!byRobot.has(row.robotId)) {
+      byRobot.set(row.robotId, { robot: `Robot ${row.robotId}` });
     }
-
-    const row = byRobot.get(stop.robotId);
-    if (!row) continue;
-
-    const rawReason = stop[field] || 'unknown';
-    const normalizedReason = reasonKeys.includes(rawReason)
-      ? rawReason
-      : AGGREGATED_OTHER_REASON_KEY;
-    row[normalizedReason] = ((row[normalizedReason] as number) ?? 0) + 1;
+    const robotRow = byRobot.get(row.robotId)!;
+    const rawReason = row.reason || 'unknown';
+    const key = reasonKeys.includes(rawReason) ? rawReason : AGGREGATED_OTHER_REASON_KEY;
+    robotRow[key] = ((robotRow[key] as number) ?? 0) + row.count;
   }
 
   const rows = [...byRobot.values()].sort((a, b) => {
@@ -421,16 +317,13 @@ function buildReasonDistributionByRobot(
       row[reason] = (row[reason] as number) ?? 0;
     }
     if (hasOther) {
-      row[AGGREGATED_OTHER_REASON_KEY] =
-        (row[AGGREGATED_OTHER_REASON_KEY] as number) ?? 0;
+      row[AGGREGATED_OTHER_REASON_KEY] = (row[AGGREGATED_OTHER_REASON_KEY] as number) ?? 0;
     }
   }
 
   return {
     rows,
-    reasonKeys: hasOther
-      ? [...reasonKeys, AGGREGATED_OTHER_REASON_KEY]
-      : reasonKeys,
+    reasonKeys: hasOther ? [...reasonKeys, AGGREGATED_OTHER_REASON_KEY] : reasonKeys,
   };
 }
 

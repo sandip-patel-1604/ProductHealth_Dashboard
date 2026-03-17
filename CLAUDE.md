@@ -6,13 +6,13 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 
 ## Project Overview
 
-**ProductHealth_Dashboard** is a React-based dashboard for analyzing overnight robot stop reports. Users upload `.ods` spreadsheets produced by automated test runs, and the dashboard provides interactive visualizations to evaluate test health: stop counts, stop durations, stop type distributions, spatial heatmaps, and multi-session trend tracking across software releases.
+**ProductHealth_Dashboard** is a modular, three-tier dashboard for analyzing overnight robot stop reports. Users upload `.ods` spreadsheets produced by automated test runs, and the dashboard provides interactive visualizations to evaluate test health: stop counts, stop durations, stop type distributions, spatial heatmaps, and multi-session trend tracking across software releases.
 
 ---
 
 ## Repository State
 
-- **Status:** Clean scaffold — starting fresh
+- **Status:** Modular architecture — Frontend + API + PostgreSQL
 - **License:** MIT
 - **Primary branch:** `master`
 
@@ -39,23 +39,37 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 - Never introduce command injection, XSS, SQL injection, or other OWASP Top 10 vulnerabilities
 - Validate all external input (user input, API responses, file reads)
 - Do not expose internal errors or stack traces to end users
+- Use Zod schemas for API request validation (defined in `shared/src/validation.ts`)
 
 ---
 
 ## Architecture
 
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Dashboard   │◄────►│   API Server  │◄────►│  PostgreSQL   │
+│  React + Vite │ :5173│  Express + TS │ :3000│    16-alpine  │ :5432
+│  TailwindCSS  │      │  Drizzle ORM  │      │ product_health│
+└──────────────┘      └──────────────┘      └──────────────┘
+```
+
 | Concern | Decision |
 |---|---|
 | Frontend framework | React 19 + TypeScript (Vite) |
-| Backend language / framework | TBD |
-| Database | TBD |
-| Auth mechanism | TBD |
-| ODS parsing | TBD |
-| State management | TBD |
-| Charts | TBD |
+| Server state management | TanStack React Query |
+| Client state management | Zustand (UI state only — no data persistence) |
+| API framework | Express 5 + TypeScript |
+| ORM | Drizzle ORM (type-safe, lightweight) |
+| Database | PostgreSQL 16 |
+| Shared types | `@ph/shared` monorepo package |
+| Request validation | Zod (shared between frontend and API) |
+| File upload | Multer (Express middleware) |
+| ODS parsing | SheetJS (xlsx) — server-side |
+| Charts | Recharts |
 | Styling | Tailwind CSS v4 |
 | Environment isolation | Docker + docker-compose (works on Mac + Ubuntu 18.04+) |
-| Deployment / hosting | Static site via nginx (prod Docker stage) |
+| Deployment / hosting | Dashboard: nginx (prod Docker stage), API: Node.js |
+| Auth mechanism | TBD |
 | CI/CD | TBD |
 
 See `PLAN.md` for the full phased implementation plan.
@@ -75,32 +89,26 @@ See `PLAN.md` for the full phased implementation plan.
 # From the repo root:
 docker compose up --build
 
-# Dashboard is available at http://localhost:5173
+# Dashboard: http://localhost:5173
+# API:       http://localhost:3000/api/v1/health
+# Database:  localhost:5432 (ph_user / ph_dev_pass / product_health)
 ```
 
-Edits to files in `dashboard/src/` are reflected instantly in the browser (Vite HMR through Docker volume mount).
+The database schema is automatically migrated on API startup. Edits to files in `dashboard/src/` or `api/src/` are reflected instantly (Vite HMR for frontend, tsx watch for API).
 
 ### Stop
 
 ```bash
-docker compose down
-```
-
-### Production build (local test)
-
-```bash
-docker build --target prod -t ph-dashboard ./dashboard
-docker run -p 8080:80 ph-dashboard
-# Visit http://localhost:8080
+docker compose down          # stop services, keep data
+docker compose down -v       # stop services AND delete database volume
 ```
 
 ### Environment Variables
 
-Create a `.env` file at the project root (never commit it). Expected variables will be documented here as they are added:
+Copy `.env.example` to `.env` at the project root (never commit `.env`):
 
 ```
-# DATABASE_URL=postgresql://ph_user:ph_pass@db:5432/product_health
-# API_KEY=
+DB_PASSWORD=ph_dev_pass
 ```
 
 ---
@@ -108,14 +116,6 @@ Create a `.env` file at the project root (never commit it). Expected variables w
 ## Testing
 
 > To be filled in once testing framework is configured.
-
-### Running Tests
-
-```bash
-# Example — update once stack is decided
-# npm test
-# pytest
-```
 
 ### Test Conventions
 
@@ -125,36 +125,60 @@ Create a `.env` file at the project root (never commit it). Expected variables w
 
 ---
 
-## Build & Deployment
-
-```bash
-# Build production image
-docker build --target prod -t ph-dashboard ./dashboard
-
-# Run production image locally
-docker run -p 8080:80 ph-dashboard
-```
-
----
-
 ## Project Structure
-
-> To be filled in as the codebase grows. Update this section when adding major new directories or modules.
 
 ```
 ProductHealth_Dashboard/
-├── dashboard/                  # Vite + React + TypeScript app
+├── shared/                         # @ph/shared — shared TypeScript types + validation
+│   └── src/
+│       ├── types.ts                # Domain types (StopRecord, TestSession, KPIData, etc.)
+│       ├── validation.ts           # Zod schemas for API request validation
+│       └── constants.ts            # Default modes, API prefix
+├── api/                            # Express API server
 │   ├── src/
-│   │   ├── components/         # UI components (charts, tables, filters, upload)
-│   │   ├── lib/                # ODS parser, types, storage utilities
-│   │   ├── store/              # Zustand state store
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── Dockerfile              # Multi-stage: dev (hot reload) + prod (nginx)
-│   └── package.json
-├── docker-compose.yml          # Orchestrates dashboard (+ future db / api)
-├── PLAN.md                     # Phased implementation roadmap
-├── CLAUDE.md                   # This file
+│   │   ├── index.ts                # Express app entry
+│   │   ├── config.ts               # Environment config
+│   │   ├── db/                     # Drizzle ORM schema + migrations
+│   │   │   ├── client.ts           # Database connection pool
+│   │   │   ├── schema.ts           # Drizzle table definitions
+│   │   │   └── migrate.ts          # SQL migration runner
+│   │   ├── routes/                 # REST endpoint handlers
+│   │   │   ├── sessions.ts         # CRUD + file upload
+│   │   │   ├── stops.ts            # Filtered/paginated stop queries
+│   │   │   ├── aggregations.ts     # KPIs, charts, heatmap data
+│   │   │   ├── patches.ts          # Patch management
+│   │   │   └── modes.ts            # Dashboard mode CRUD
+│   │   ├── services/               # Business logic
+│   │   │   ├── parser.service.ts   # ODS + patch file parsing
+│   │   │   ├── session.service.ts  # Session CRUD
+│   │   │   └── aggregation.service.ts # KPI + chart queries
+│   │   ├── middleware/             # Express middleware
+│   │   └── plugins/               # Dashboard mode plugins
+│   │       ├── registry.ts         # Plugin registration API
+│   │       ├── overview.plugin.ts
+│   │       ├── trend.plugin.ts
+│   │       ├── heatmap.plugin.ts
+│   │       └── comparison.plugin.ts
+│   └── Dockerfile                  # Multi-stage: dev + build + prod
+├── dashboard/                      # React 19 frontend
+│   ├── src/
+│   │   ├── api/                    # API client functions (fetch wrappers)
+│   │   ├── hooks/                  # React Query hooks
+│   │   ├── modes/                  # Dashboard mode components (lazy-loaded)
+│   │   │   ├── registry.ts         # Frontend mode registry
+│   │   │   ├── ModeRouter.tsx      # Renders active mode component
+│   │   │   ├── overview/           # Session overview (KPIs + table + patches)
+│   │   │   ├── trend/              # Multi-session trends (stub)
+│   │   │   ├── heatmap/            # Spatial visualization (stub)
+│   │   │   └── comparison/         # Side-by-side comparison (stub)
+│   │   ├── components/             # Shared UI components
+│   │   ├── store/                  # Zustand (UI state only)
+│   │   └── lib/                    # Type re-exports from @ph/shared
+│   └── Dockerfile                  # Multi-stage: dev + build + prod (nginx)
+├── docker-compose.yml              # Orchestrates db + api + dashboard
+├── .env.example                    # Environment variable template
+├── PLAN.md
+├── CLAUDE.md                       # This file
 └── LICENSE
 ```
 
@@ -173,6 +197,16 @@ ProductHealth_Dashboard/
 | STOP_LOCATION_CODE | Named warehouse zone where the stop occurred |
 | Server | The test server name, embedded in the `.ods` filename (e.g., b023) |
 | Product health | Aggregate view of quality, velocity, and reliability across test sessions |
+| Dashboard mode | A pluggable view (Overview, Trends, Heatmap, Compare) with its own API endpoints and UI |
+
+---
+
+## Adding a New Dashboard Mode
+
+1. **Backend**: Create `api/src/plugins/mymode.plugin.ts` implementing the `DashboardModePlugin` interface from `registry.ts`
+2. **Frontend**: Create `dashboard/src/modes/mymode/MyMode.tsx` as a default export React component
+3. **Register**: Import the plugin in `api/src/index.ts` and add to `dashboard/src/modes/registry.ts`
+4. No changes to core routing, database schema, or existing modes required
 
 ---
 
