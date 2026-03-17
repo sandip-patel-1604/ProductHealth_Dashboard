@@ -4,6 +4,7 @@ import multer from 'multer';
 import { db } from '../db/client.js';
 import { patches } from '../db/schema.js';
 import { parsePatchBuffer } from '../services/parser.service.js';
+import { param } from '../middleware/params.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -19,7 +20,7 @@ router.get('/:id/patches', async (req, res, next) => {
         description: patches.description,
       })
       .from(patches)
-      .where(eq(patches.sessionId, req.params.id));
+      .where(eq(patches.sessionId, param(req.params.id)));
 
     res.json({ data: rows });
   } catch (err) {
@@ -35,12 +36,13 @@ router.post('/:id/patches/upload', upload.single('patchFile'), async (req, res, 
       return;
     }
 
+    const sessionId = param(req.params.id);
     const records = parsePatchBuffer(req.file.buffer, req.file.originalname);
 
     if (records.length > 0) {
       await db.insert(patches).values(
         records.map((p) => ({
-          sessionId: req.params.id,
+          sessionId,
           project: p.project,
           patchSet: p.patchSet,
           description: p.description,

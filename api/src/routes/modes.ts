@@ -4,6 +4,7 @@ import { db } from '../db/client.js';
 import { dashboardModes } from '../db/schema.js';
 import { modeUpdateSchema } from '@ph/shared';
 import { validateBody } from '../middleware/validate.js';
+import { param } from '../middleware/params.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.put('/:modeId', validateBody(modeUpdateSchema), async (req, res, next) =>
     const [updated] = await db
       .update(dashboardModes)
       .set(updates)
-      .where(eq(dashboardModes.id, req.params.modeId))
+      .where(eq(dashboardModes.id, param(req.params.modeId)))
       .returning();
 
     if (!updated) {
