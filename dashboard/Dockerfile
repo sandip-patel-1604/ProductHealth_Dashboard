@@ -3,14 +3,18 @@ FROM node:20-alpine AS dev
 
 WORKDIR /app
 
-# Install dependencies first (layer cache: only re-runs when package files change)
-COPY package.json package-lock.json* ./
-RUN npm install
+# Install shared package first (layer cache: only re-runs when package files change)
+COPY shared/package.json shared/package-lock.json* shared/
+RUN cd shared && npm install
 
-# Source is mounted as a volume at runtime — do NOT copy here for dev
+# Install dashboard dependencies
+COPY dashboard/package.json dashboard/package-lock.json* dashboard/
+RUN cd dashboard && npm install
+
+# Source is mounted as volumes at runtime — do NOT copy here for dev
 EXPOSE 5173
 
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "cd /app/dashboard && npm run dev"]
 
 
 # ─── Build stage ──────────────────────────────────────────────────────────────
@@ -18,17 +22,20 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY shared/ shared/
+RUN cd shared && npm install
 
-COPY . .
-RUN npm run build
+COPY dashboard/package.json dashboard/package-lock.json* dashboard/
+RUN cd dashboard && npm install
+
+COPY dashboard/ dashboard/
+RUN cd dashboard && npm run build
 
 
 # ─── Production stage ─────────────────────────────────────────────────────────
 FROM nginx:alpine AS prod
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/dashboard/dist /usr/share/nginx/html
 
 # SPA routing: send all routes to index.html
 RUN printf 'server {\n\

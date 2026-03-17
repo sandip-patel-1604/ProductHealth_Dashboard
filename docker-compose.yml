@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ph_user
       POSTGRES_PASSWORD: ${DB_PASSWORD:-ph_dev_pass}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,13 +36,15 @@ services:
 
   dashboard:
     build:
-      context: ./dashboard
+      context: .                    # root context so it can access shared/
+      dockerfile: dashboard/Dockerfile
       target: dev                   # use the dev stage (hot reload)
     ports:
       - "5173:5173"
     volumes:
-      - ./dashboard:/app            # live source mount — edits reflect instantly
-      - /app/node_modules           # anonymous volume: keep container's node_modules
+      - ./dashboard:/app/dashboard  # live source mount — edits reflect instantly
+      - /app/dashboard/node_modules # anonymous volume: keep container's node_modules
+      - ./shared/src:/app/shared/src # mount shared source for hot reload
     environment:
       - NODE_ENV=development
     depends_on:
