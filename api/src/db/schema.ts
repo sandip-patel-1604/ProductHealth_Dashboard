@@ -16,15 +16,24 @@ export const testSessions = pgTable('test_sessions', {
   server: text('server').notNull(),
   startTime: timestamp('start_time', { withTimezone: true }).notNull(),
   endTime: timestamp('end_time', { withTimezone: true }).notNull(),
-  originalFilename: text('original_filename').notNull().unique(),
+  originalFilename: text('original_filename'),
   releaseVersion: text('release_version').notNull(),
   robotIds: integer('robot_ids').array().notNull(),
   notes: text('notes').notNull().default(''),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Athena integration columns
+  customersitekey: text('customersitekey').notNull().default(''),
+  runId: text('run_id').notNull().default(''),
+  tag: text('tag').notNull().default(''),
+  config: text('config').notNull().default(''),
+  athenaDescription: text('athena_description').notNull().default(''),
+  source: text('source').notNull().default('upload'),
 }, (table) => [
   index('idx_sessions_server').on(table.server),
   index('idx_sessions_release').on(table.releaseVersion),
   index('idx_sessions_time').on(table.startTime),
+  index('idx_sessions_site').on(table.customersitekey),
+  index('idx_sessions_run_id').on(table.runId),
 ]);
 
 export const stopRecords = pgTable('stop_records', {
@@ -71,6 +80,17 @@ export const patches = pgTable('patches', {
   description: text('description').notNull(),
 }, (table) => [
   index('idx_patches_session').on(table.sessionId),
+]);
+
+export const athenaSyncLog = pgTable('athena_sync_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  customersitekey: text('customersitekey').notNull(),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }).notNull().defaultNow(),
+  rowsFetched: integer('rows_fetched').notNull().default(0),
+  sessionsCreated: integer('sessions_created').notNull().default(0),
+  sessionsUpdated: integer('sessions_updated').notNull().default(0),
+}, (table) => [
+  index('idx_sync_log_site').on(table.customersitekey),
 ]);
 
 export const dashboardModes = pgTable('dashboard_modes', {

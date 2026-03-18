@@ -14,6 +14,15 @@ export type {
   PaginatedResponse,
   ApiResponse,
   DashboardMode,
+  AthenaSessionRow,
+  ParsedTag,
+  AthenaSyncRequest,
+  AthenaSyncResponse,
+  AuthStatus,
+  SSOStartResponse,
+  SSOPollResponse,
+  AthenaPreviewRow,
+  AthenaPreviewResponse,
 } from '@ph/shared';
 
 export { EMPTY_FILTERS } from '@ph/shared';

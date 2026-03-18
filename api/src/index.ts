@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 
@@ -9,6 +10,9 @@ import stopsRouter from './routes/stops.js';
 import aggregationsRouter from './routes/aggregations.js';
 import patchesRouter from './routes/patches.js';
 import modesRouter from './routes/modes.js';
+import authRouter from './routes/auth.js';
+import athenaRouter from './routes/athena.js';
+import { requireAuth } from './middleware/require-auth.js';
 
 // Load plugins (side-effect: registers mode plugins)
 import './plugins/overview.plugin.js';
@@ -21,27 +25,37 @@ import { db } from './db/client.js';
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: config.corsOrigin,
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Core routes
-app.use('/api/v1/sessions', sessionsRouter);
-app.use('/api/v1/sessions', stopsRouter);
-app.use('/api/v1/sessions', aggregationsRouter);
-app.use('/api/v1/sessions', patchesRouter);
-app.use('/api/v1/modes', modesRouter);
+// Auth routes (no auth required)
+app.use('/api/v1/auth', authRouter);
+
+// Athena routes (requires auth)
+app.use('/api/v1/athena', athenaRouter);
+
+// Core routes (requires auth — skipped in dev, enforced in prod)
+app.use('/api/v1/sessions', requireAuth, sessionsRouter);
+app.use('/api/v1/sessions', requireAuth, stopsRouter);
+app.use('/api/v1/sessions', requireAuth, aggregationsRouter);
+app.use('/api/v1/sessions', requireAuth, patchesRouter);
+app.use('/api/v1/modes', requireAuth, modesRouter);
 
 // Register plugin routes
 const pluginRouter = express.Router();
 for (const plugin of getModes()) {
   plugin.registerRoutes(pluginRouter, db);
 }
-app.use('/api/v1', pluginRouter);
+app.use('/api/v1', requireAuth, pluginRouter);
 
 // Error handling
 app.use(errorHandler);

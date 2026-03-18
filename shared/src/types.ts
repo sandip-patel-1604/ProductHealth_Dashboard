@@ -23,12 +23,12 @@ export interface StopRecord {
   vrosSwVersion: string;
 }
 
-/** Metadata extracted from the .ods filename */
+/** Metadata extracted from the .ods filename or Athena session */
 export interface FileMetadata {
   server: string;
   startTime: string; // ISO-ish string from filename
   endTime: string;
-  originalFilename: string;
+  originalFilename: string | null;
 }
 
 /** A patch record from a patch spreadsheet */
@@ -129,4 +129,83 @@ export interface DashboardMode {
   label: string;
   enabled: boolean;
   config: Record<string, unknown>;
+}
+
+// ─── Athena Integration Types ─────────────────────────────────────────
+
+/** A single row from the qa.fact_date_range Athena table */
+export interface AthenaSessionRow {
+  customersitekey: string;
+  tag: string;
+  description: string;
+  start: string;
+  end: string;
+  robot_id: string;
+}
+
+/** Result of parsing the tag field from fact_date_range */
+export interface ParsedTag {
+  runId: string;          // e.g. "T1361"
+  config: string;         // e.g. "30p-AG"
+  releaseVersion: string; // e.g. "2.23.0-VC3"
+  hasPatches: boolean;
+  robotSerials: number[]; // e.g. [220, 225, 481]
+  date: string;           // e.g. "2026/3/16"
+  rawTag: string;
+}
+
+/** Request body for POST /athena/sync */
+export interface AthenaSyncRequest {
+  customersitekey: string;
+  startDate: string; // ISO date YYYY-MM-DD
+  endDate: string;   // ISO date YYYY-MM-DD
+  runIds?: string[]; // When provided, only sync these run IDs
+}
+
+/** A single run in the preview view */
+export interface AthenaPreviewRow {
+  runId: string;
+  tag: string;
+  releaseVersion: string;
+  config: string;
+  description: string;
+  robotIds: number[];
+  startTime: string;  // ISO
+  endTime: string;    // ISO
+  rowCount: number;
+  status: 'imported' | 'new';
+  sessionId?: string; // Existing session UUID if imported
+}
+
+/** Response from POST /athena/preview */
+export interface AthenaPreviewResponse {
+  runs: AthenaPreviewRow[];
+  totalAthenaRows: number;
+}
+
+/** Response from POST /athena/sync */
+export interface AthenaSyncResponse {
+  sessionsCreated: number;
+  sessionsUpdated: number;
+  totalRows: number;
+}
+
+/** Auth status response */
+export interface AuthStatus {
+  authenticated: boolean;
+  expiresAt?: string;
+}
+
+/** SSO start response */
+export interface SSOStartResponse {
+  verificationUri: string;
+  deviceCode: string;
+  interval: number;
+  expiresIn: number;
+}
+
+/** SSO poll response */
+export interface SSOPollResponse {
+  authenticated: boolean;
+  pending?: boolean;
 }

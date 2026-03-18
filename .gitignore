@@ -1,3 +1,6 @@
 .agent/artifacts/
 __pycache__/
 *.pyc
+.env
+api/.venv/
+node_modules/

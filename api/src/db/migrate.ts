@@ -83,6 +83,49 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_patches_session  ON patches(session_id);
     `);
 
+    // ── Athena integration schema evolution ──────────────────────────────
+    await client.query(`
+      -- New columns on test_sessions for Athena-sourced sessions
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS customersitekey TEXT NOT NULL DEFAULT '';
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS run_id TEXT NOT NULL DEFAULT '';
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS tag TEXT NOT NULL DEFAULT '';
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS config TEXT NOT NULL DEFAULT '';
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS athena_description TEXT NOT NULL DEFAULT '';
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'upload';
+
+      -- Make original_filename nullable (was UNIQUE NOT NULL, now optional for Athena sessions)
+      ALTER TABLE test_sessions ALTER COLUMN original_filename DROP NOT NULL;
+
+      -- Unique constraint for Athena-sourced sessions (by site + run_id)
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_session_site_run
+        ON test_sessions(customersitekey, run_id) WHERE run_id != '';
+
+      -- Indexes for new columns
+      CREATE INDEX IF NOT EXISTS idx_sessions_site ON test_sessions(customersitekey);
+      CREATE INDEX IF NOT EXISTS idx_sessions_run_id ON test_sessions(run_id);
+
+      -- Sync tracking table
+      CREATE TABLE IF NOT EXISTS athena_sync_log (
+        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customersitekey   TEXT NOT NULL,
+        last_synced_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        rows_fetched      INTEGER NOT NULL DEFAULT 0,
+        sessions_created  INTEGER NOT NULL DEFAULT 0,
+        sessions_updated  INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_sync_log_site ON athena_sync_log(customersitekey);
+    `);
+
+    // Drop the old unique constraint on original_filename (idempotent)
+    await client.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE test_sessions DROP CONSTRAINT IF EXISTS test_sessions_original_filename_key;
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
+    `);
+
     // Seed default dashboard modes
     for (const mode of DEFAULT_MODES) {
       await client.query(

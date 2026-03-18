@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build", "dashboard"],
+      "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build", "api"],
+      "port": 3000
+    }
+  ]
+}

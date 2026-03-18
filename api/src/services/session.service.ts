@@ -1,98 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { testSessions, stopRecords, patches } from '../db/schema.js';
-import { parseFilename, parseOdsBuffer, parsePatchBuffer } from './parser.service.js';
-import type { ParsedStopRow } from './parser.service.js';
 import type { SessionSummary } from '@ph/shared';
-
-interface UploadInput {
-  odsBuffer: Buffer;
-  odsFilename: string;
-  patchBuffer?: Buffer;
-  patchFilename?: string;
-  releaseVersion: string;
-  robotIdsText: string;
-  notes: string;
-}
-
-export async function uploadSession(input: UploadInput): Promise<string> {
-  const fileMeta = parseFilename(input.odsFilename);
-  const stopRows = parseOdsBuffer(input.odsBuffer);
-
-  // Parse robot IDs from text, or auto-detect from data
-  let robotIds = input.robotIdsText
-    .split(/[,\s]+/)
-    .map((s) => parseInt(s.trim(), 10))
-    .filter((n) => !isNaN(n));
-
-  if (robotIds.length === 0) {
-    robotIds = [...new Set(stopRows.map((s) => s.robotId))].sort((a, b) => a - b);
-  }
-
-  // Parse patches if provided
-  const patchRecords = input.patchBuffer && input.patchFilename
-    ? parsePatchBuffer(input.patchBuffer, input.patchFilename)
-    : [];
-
-  // Insert session
-  const [session] = await db.insert(testSessions).values({
-    server: fileMeta.server,
-    startTime: new Date(fileMeta.startTime || new Date().toISOString()),
-    endTime: new Date(fileMeta.endTime || new Date().toISOString()),
-    originalFilename: fileMeta.originalFilename,
-    releaseVersion: input.releaseVersion,
-    robotIds,
-    notes: input.notes,
-  }).returning({ id: testSessions.id });
-
-  // Batch insert stops
-  if (stopRows.length > 0) {
-    const BATCH_SIZE = 500;
-    for (let i = 0; i < stopRows.length; i += BATCH_SIZE) {
-      const batch = stopRows.slice(i, i + BATCH_SIZE);
-      await db.insert(stopRecords).values(
-        batch.map((row: ParsedStopRow, idx: number) => ({
-          sessionId: session.id,
-          rowIndex: i + idx,
-          robotId: row.robotId,
-          timestamp: row.timestamp,
-          playbackUrl: row.playbackUrl,
-          robotIdTimestamp: row.robotIdTimestamp,
-          l1StopReason: row.l1StopReason,
-          l2StopReason: row.l2StopReason,
-          l3StopReason: row.l3StopReason,
-          stopLocationCode: row.stopLocationCode,
-          poseX: row.poseX,
-          poseY: row.poseY,
-          stopDuration: row.stopDuration,
-          triageComment: row.triageComment,
-          supportInterventionMade: row.supportInterventionMade,
-          palletLoaded: row.palletLoaded,
-          floor: row.floor,
-          client: row.client,
-          application: row.application,
-          nexusSwVersion: row.nexusSwVersion,
-          nrvSwVersion: row.nrvSwVersion,
-          vrosSwVersion: row.vrosSwVersion,
-        }))
-      );
-    }
-  }
-
-  // Insert patches
-  if (patchRecords.length > 0) {
-    await db.insert(patches).values(
-      patchRecords.map((p) => ({
-        sessionId: session.id,
-        project: p.project,
-        patchSet: p.patchSet,
-        description: p.description,
-      }))
-    );
-  }
-
-  return session.id;
-}
 
 export async function listSessions(): Promise<SessionSummary[]> {
   const rows = await db
@@ -106,6 +15,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
       robotIds: testSessions.robotIds,
       notes: testSessions.notes,
       createdAt: testSessions.createdAt,
+      tag: testSessions.tag,
       stopCount: sql<number>`(SELECT count(*) FROM stop_records WHERE session_id = ${testSessions.id})::int`,
     })
     .from(testSessions)
@@ -117,7 +27,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
       server: r.server,
       startTime: r.startTime.toISOString(),
       endTime: r.endTime.toISOString(),
-      originalFilename: r.originalFilename,
+      originalFilename: r.originalFilename ?? r.tag ?? null,
     },
     sessionMetadata: {
       releaseVersion: r.releaseVersion,
@@ -154,7 +64,7 @@ export async function getSession(id: string) {
       server: session.server,
       startTime: session.startTime.toISOString(),
       endTime: session.endTime.toISOString(),
-      originalFilename: session.originalFilename,
+      originalFilename: session.originalFilename ?? session.tag ?? null,
     },
     sessionMetadata: {
       releaseVersion: session.releaseVersion,
