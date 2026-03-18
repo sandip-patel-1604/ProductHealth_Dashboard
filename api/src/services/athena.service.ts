@@ -132,7 +132,10 @@ async function executeQuery(
   });
 
   const startResp = await client.send(command);
-  const queryExecutionId = startResp.QueryExecutionId!;
+  const queryExecutionId = startResp.QueryExecutionId;
+  if (!queryExecutionId) {
+    throw new Error('Athena did not return a QueryExecutionId');
+  }
 
   await waitForQuery(client, queryExecutionId);
   return fetchAllResults(client, queryExecutionId);

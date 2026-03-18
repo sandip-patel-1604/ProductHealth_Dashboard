@@ -36,7 +36,7 @@ export function AthenaSync() {
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
   const [importResult, setImportResult] = useState<{ created: number; updated: number } | null>(null);
 
-  const isFirstSync = !syncStatusLoading && (syncStatus === null || syncStatus === undefined);
+  const isFirstSync = !!selectedSite && !syncStatusLoading && syncStatus == null;
   const effectiveStartDate = isFirstSync ? cutoffDate : startDate;
 
   const newRuns = useMemo(

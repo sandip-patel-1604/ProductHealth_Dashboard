@@ -56,9 +56,15 @@ router.post('/sync', async (req, res, next) => {
 });
 
 /** GET /athena/sync-status/:site — last sync time for a site */
+const siteKeyPattern = /^[a-zA-Z0-9_\-. ]+$/;
+
 router.get('/sync-status/:site', async (req, res, next) => {
   try {
     const { site } = req.params;
+    if (!siteKeyPattern.test(site)) {
+      res.status(400).json({ error: 'Invalid site key format' });
+      return;
+    }
     const [latest] = await db
       .select()
       .from(athenaSyncLog)

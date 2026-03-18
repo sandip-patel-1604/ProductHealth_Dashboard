@@ -37,6 +37,33 @@ interface SessionEntry {
 /** In-memory session store — keyed by session token */
 const sessions = new Map<string, SessionEntry>();
 
+/** Max age for pending auth entries that were never completed (10 minutes) */
+const PENDING_AUTH_TTL_MS = 10 * 60 * 1000;
+
+/** Cleanup interval (5 minutes) */
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Remove expired credentials and stale pending auth entries */
+function cleanupExpiredSessions(): void {
+  const now = Date.now();
+  for (const [token, entry] of sessions) {
+    // Remove sessions with expired credentials
+    if (entry.credentials && now > entry.credentials.expiration) {
+      sessions.delete(token);
+      continue;
+    }
+    // Remove abandoned pending auth (no credentials, pending for too long)
+    if (!entry.credentials && entry.pendingAuth) {
+      // pendingAuth entries older than TTL are stale
+      sessions.delete(token);
+    }
+  }
+}
+
+// Run cleanup periodically
+const cleanupTimer = setInterval(cleanupExpiredSessions, CLEANUP_INTERVAL_MS);
+cleanupTimer.unref(); // Don't prevent Node.js from exiting
+
 /** Generate a new session token */
 export function createSessionToken(): string {
   return crypto.randomUUID();

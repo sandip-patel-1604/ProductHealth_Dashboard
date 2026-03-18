@@ -9,23 +9,28 @@ export function SSOLogin() {
   const [deviceCode, setDeviceCode] = useState('');
   const [error, setError] = useState('');
   const pollTimerRef = useRef<ReturnType<typeof setInterval>>();
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
-  const stopPolling = useCallback(() => {
+  const stopTimers = useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = undefined;
     }
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = undefined;
+    }
   }, []);
 
   // Cleanup on unmount
-  useEffect(() => stopPolling, [stopPolling]);
+  useEffect(() => stopTimers, [stopTimers]);
 
   const handleSignIn = async () => {
     setError('');
     setPhase('idle');
-    stopPolling();
+    stopTimers();
 
     try {
       const result = await ssoStart.mutateAsync({});
@@ -42,19 +47,19 @@ export function SSOLogin() {
         try {
           const pollResult = await ssoPoll.mutateAsync(result.deviceCode);
           if (pollResult.authenticated) {
-            stopPolling();
+            stopTimers();
             // Auth status query will auto-refresh and AuthGate will show dashboard
           }
         } catch (err) {
-          stopPolling();
+          stopTimers();
           setPhase('error');
           setError(err instanceof Error ? err.message : 'Polling failed');
         }
       }, interval);
 
       // Auto-stop after expiry — use ref to avoid stale closure
-      setTimeout(() => {
-        stopPolling();
+      expiryTimerRef.current = setTimeout(() => {
+        stopTimers();
         if (phaseRef.current === 'waiting') {
           setPhase('error');
           setError('SSO authorization timed out. Please try again.');
@@ -100,7 +105,7 @@ export function SSOLogin() {
             </p>
             <button
               onClick={() => {
-                stopPolling();
+                stopTimers();
                 setPhase('idle');
                 setDeviceCode('');
               }}

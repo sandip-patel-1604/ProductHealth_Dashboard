@@ -12,6 +12,7 @@ import patchesRouter from './routes/patches.js';
 import modesRouter from './routes/modes.js';
 import authRouter from './routes/auth.js';
 import athenaRouter from './routes/athena.js';
+import { requireAuth } from './middleware/require-auth.js';
 
 // Load plugins (side-effect: registers mode plugins)
 import './plugins/overview.plugin.js';
@@ -43,7 +44,6 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/athena', athenaRouter);
 
 // Core routes (requires auth — skipped in dev, enforced in prod)
-import { requireAuth } from './middleware/require-auth.js';
 app.use('/api/v1/sessions', requireAuth, sessionsRouter);
 app.use('/api/v1/sessions', requireAuth, stopsRouter);
 app.use('/api/v1/sessions', requireAuth, aggregationsRouter);
@@ -55,7 +55,7 @@ const pluginRouter = express.Router();
 for (const plugin of getModes()) {
   plugin.registerRoutes(pluginRouter, db);
 }
-app.use('/api/v1', pluginRouter);
+app.use('/api/v1', requireAuth, pluginRouter);
 
 // Error handling
 app.use(errorHandler);
