@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
-import { parseFilename, parseOdsFile, parsePatchFile } from '../../lib/parser';
-import type { TestSession, SessionMetadata } from '../../lib/types';
+import type { SessionMetadata } from '../../lib/types';
 import { useStore } from '../../store/useStore';
+import { useUploadSession } from '../../hooks/useSessions';
 
 const REQUIRE_MANUAL_RELEASE_VERSION = true;
 
 export function FileUpload() {
-  const addSession = useStore((s) => s.addSession);
+  const setActiveSession = useStore((s) => s.setActiveSession);
+  const uploadMutation = useUploadSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<File[]>([]);
@@ -18,7 +19,6 @@ export function FileUpload() {
     patches: [],
   });
   const [robotIdsText, setRobotIdsText] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
 
@@ -57,47 +57,25 @@ export function FileUpload() {
       return;
     }
 
-    setLoading(true);
     setError('');
 
     try {
-      // Parse robot IDs from comma-separated text
-      const robotIds = robotIdsText
-        .split(/[,\s]+/)
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-
-      const patches = patchFile ? await parsePatchFile(patchFile) : [];
-
       for (const file of files) {
-        const fileMetadata = parseFilename(file.name);
-        const stops = await parseOdsFile(file);
+        const formData = new FormData();
+        formData.append('odsFile', file);
+        formData.append('releaseVersion', releaseVersion);
+        formData.append('robotIds', robotIdsText);
+        formData.append('notes', metadata.notes);
 
-        // Auto-detect robot IDs from data if not provided
-        const detectedRobotIds =
-          robotIds.length > 0
-            ? robotIds
-            : [...new Set(stops.map((s) => s.robotId))].sort((a, b) => a - b);
+        if (patchFile) {
+          formData.append('patchFile', patchFile);
+        }
 
-        const session: TestSession = {
-          id: crypto.randomUUID(),
-          fileMetadata,
-          sessionMetadata: {
-            ...metadata,
-            releaseVersion,
-            robotIds: detectedRobotIds,
-            patches,
-          },
-          stops,
-          createdAt: new Date().toISOString(),
-        };
-
-        // Await so any backend rejection (validation, DB error, duplicate session)
-        // is caught by the outer catch block and shown to the user.
-        await addSession(session);
+        const result = await uploadMutation.mutateAsync(formData);
+        setActiveSession(result.id);
       }
 
-      // Reset form only after ALL sessions have been saved successfully.
+      // Reset form
       setFiles([]);
       setPatchFile(null);
       setMetadata({ releaseVersion: '', robotIds: [], notes: '', patches: [] });
@@ -105,12 +83,12 @@ export function FileUpload() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(
-        `Failed to parse file: ${err instanceof Error ? err.message : 'Unknown error'}`
+        `Failed to upload: ${err instanceof Error ? err.message : 'Unknown error'}`
       );
-    } finally {
-      setLoading(false);
     }
   };
+
+  const loading = uploadMutation.isPending;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -230,7 +208,7 @@ export function FileUpload() {
         disabled={loading || files.length === 0}
         className="w-full bg-emerald-500 text-slate-950 py-2.5 px-4 rounded-md text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Parsing...' : 'Upload & Parse'}
+        {loading ? 'Uploading...' : 'Upload & Parse'}
       </button>
     </form>
   );

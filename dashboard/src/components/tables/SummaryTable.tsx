@@ -1,46 +1,6 @@
-import { useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-import type { StopRecord, SortConfig, FilterState } from '../../lib/types';
-import { EMPTY_FILTERS } from '../../lib/types';
-
-function applyFilters(stops: StopRecord[], filters: FilterState): StopRecord[] {
-  return stops.filter((s) => {
-    if (filters.robotId !== null && s.robotId !== filters.robotId) return false;
-    if (filters.l1StopReason && s.l1StopReason !== filters.l1StopReason)
-      return false;
-    if (filters.l2StopReason && s.l2StopReason !== filters.l2StopReason)
-      return false;
-    if (filters.l3StopReason && s.l3StopReason !== filters.l3StopReason)
-      return false;
-    if (
-      filters.stopLocationCode &&
-      s.stopLocationCode !== filters.stopLocationCode
-    )
-      return false;
-    if (filters.minDuration !== null && s.stopDuration < filters.minDuration)
-      return false;
-    if (filters.maxDuration !== null && s.stopDuration > filters.maxDuration)
-      return false;
-    return true;
-  });
-}
-
-function applySort(stops: StopRecord[], sort: SortConfig): StopRecord[] {
-  const sorted = [...stops];
-  sorted.sort((a, b) => {
-    const aVal = a[sort.key];
-    const bVal = b[sort.key];
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sort.direction === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    const aStr = String(aVal);
-    const bStr = String(bVal);
-    return sort.direction === 'asc'
-      ? aStr.localeCompare(bStr)
-      : bStr.localeCompare(aStr);
-  });
-  return sorted;
-}
+import { useStops, useFilterOptions } from '../../hooks/useStops';
+import type { StopRecord } from '../../lib/types';
 
 const COLUMNS: { key: keyof StopRecord; label: string }[] = [
   { key: 'robotId', label: 'Robot' },
@@ -53,7 +13,6 @@ const COLUMNS: { key: keyof StopRecord; label: string }[] = [
 ];
 
 export function SummaryTable() {
-  const sessions = useStore((s) => s.sessions);
   const activeSessionId = useStore((s) => s.activeSessionId);
   const filters = useStore((s) => s.filters);
   const sort = useStore((s) => s.sort);
@@ -61,34 +20,24 @@ export function SummaryTable() {
   const setFilters = useStore((s) => s.setFilters);
   const resetFilters = useStore((s) => s.resetFilters);
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const allStops = activeSession?.stops ?? [];
+  const { data: filterOptions } = useFilterOptions(activeSessionId);
 
-  // Derive unique values for each filter dropdown using cascading logic:
-  // each dropdown's options come from data filtered by all OTHER active filters,
-  // so selecting one filter narrows down the choices in the remaining filters.
-  const uniqueValues = useMemo(() => {
-    // Returns allStops filtered by every filter EXCEPT the named key
-    const stopsExcluding = (key: keyof FilterState) =>
-      applyFilters(allStops, { ...filters, [key]: EMPTY_FILTERS[key] });
+  const { data: stopsResult, isLoading } = useStops(activeSessionId, {
+    robotId: filters.robotId,
+    l1StopReason: filters.l1StopReason || undefined,
+    l2StopReason: filters.l2StopReason || undefined,
+    l3StopReason: filters.l3StopReason || undefined,
+    stopLocationCode: filters.stopLocationCode || undefined,
+    minDuration: filters.minDuration,
+    maxDuration: filters.maxDuration,
+    sortBy: sort.key,
+    sortDir: sort.direction,
+    page: 1,
+    pageSize: 500,
+  });
 
-    const unique = (stops: StopRecord[], fn: (s: StopRecord) => string | number) =>
-      [...new Set(stops.map(fn))].sort();
-
-    return {
-      robotIds: unique(stopsExcluding('robotId'), (s) => s.robotId) as number[],
-      l1: unique(stopsExcluding('l1StopReason'), (s) => s.l1StopReason) as string[],
-      l2: unique(stopsExcluding('l2StopReason'), (s) => s.l2StopReason) as string[],
-      l3: unique(stopsExcluding('l3StopReason'), (s) => s.l3StopReason) as string[],
-      locations: unique(stopsExcluding('stopLocationCode'), (s) => s.stopLocationCode) as string[],
-    };
-  }, [allStops, filters]);
-
-  const filtered = useMemo(
-    () => applyFilters(allStops, filters),
-    [allStops, filters]
-  );
-  const sorted = useMemo(() => applySort(filtered, sort), [filtered, sort]);
+  const stops = stopsResult?.data ?? [];
+  const total = stopsResult?.meta?.total ?? 0;
 
   const handleSort = (key: keyof StopRecord) => {
     setSort({
@@ -97,7 +46,7 @@ export function SummaryTable() {
     });
   };
 
-  if (!activeSession) {
+  if (!activeSessionId) {
     return (
       <p className="text-slate-400 text-sm text-center py-8">
         Upload a stop report to view data.
@@ -113,31 +62,31 @@ export function SummaryTable() {
           label="Robot"
           value={filters.robotId !== null ? String(filters.robotId) : ''}
           onChange={(v) => setFilters({ robotId: v ? Number(v) : null })}
-          options={uniqueValues.robotIds.map(String)}
+          options={(filterOptions?.robotIds ?? []).map(String)}
         />
         <FilterSelect
           label="L1 Reason"
           value={filters.l1StopReason}
           onChange={(v) => setFilters({ l1StopReason: v })}
-          options={uniqueValues.l1}
+          options={filterOptions?.l1Reasons ?? []}
         />
         <FilterSelect
           label="L2 Reason"
           value={filters.l2StopReason}
           onChange={(v) => setFilters({ l2StopReason: v })}
-          options={uniqueValues.l2}
+          options={filterOptions?.l2Reasons ?? []}
         />
         <FilterSelect
           label="L3 Reason"
           value={filters.l3StopReason}
           onChange={(v) => setFilters({ l3StopReason: v })}
-          options={uniqueValues.l3}
+          options={filterOptions?.l3Reasons ?? []}
         />
         <FilterSelect
           label="Location"
           value={filters.stopLocationCode}
           onChange={(v) => setFilters({ stopLocationCode: v })}
-          options={uniqueValues.locations}
+          options={filterOptions?.locations ?? []}
         />
         <button
           onClick={resetFilters}
@@ -149,7 +98,7 @@ export function SummaryTable() {
 
       {/* Results count */}
       <p className="text-xs text-slate-400">
-        Showing {sorted.length} of {allStops.length} stops
+        {isLoading ? 'Loading...' : `Showing ${stops.length} of ${total} stops`}
       </p>
 
       {/* Table */}
@@ -174,7 +123,7 @@ export function SummaryTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-slate-200">
-            {sorted.map((stop) => (
+            {stops.map((stop) => (
               <tr key={stop.id} className="hover:bg-slate-800/70">
                 <td className="px-3 py-2 font-mono">{stop.robotId}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
