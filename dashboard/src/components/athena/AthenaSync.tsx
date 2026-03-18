@@ -22,7 +22,7 @@ function getCutoffDefault() {
 export function AthenaSync() {
   const { selectedSite, setSelectedSite } = useStore();
   const { data: sites = [], isLoading: sitesLoading, error: sitesError } = useAthenaSites();
-  const { data: syncStatus } = useAthenaSyncStatus(selectedSite);
+  const { data: syncStatus, isLoading: syncStatusLoading } = useAthenaSyncStatus(selectedSite);
   const previewMutation = useAthenaPreview();
   const syncMutation = useAthenaSync();
 
@@ -36,7 +36,7 @@ export function AthenaSync() {
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
   const [importResult, setImportResult] = useState<{ created: number; updated: number } | null>(null);
 
-  const isFirstSync = syncStatus === null;
+  const isFirstSync = !syncStatusLoading && (syncStatus === null || syncStatus === undefined);
   const effectiveStartDate = isFirstSync ? cutoffDate : startDate;
 
   const newRuns = useMemo(

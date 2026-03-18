@@ -82,8 +82,9 @@ export function groupAthenaRows(
 
   for (const row of rows) {
     const parsed = parseTag(row.tag);
-    // Use the full tag as key if no run ID found (fallback for unusual formats)
-    const key = parsed.runId || row.tag;
+    // Use the full tag as key if no run ID found, or a hash of the row for truly empty tags.
+    // This ensures run_id is never empty, so the partial unique index always applies.
+    const key = parsed.runId || row.tag || `unknown-${row.start}-${row.robot_id}`;
     const group = groups.get(key);
     if (group) {
       group.push(row);

@@ -28,16 +28,19 @@ export const modeUpdateSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
+/** Strict allowlist for customer site keys — prevents SQL injection in Athena queries */
+const siteKeyPattern = /^[a-zA-Z0-9_\-. ]+$/;
+
 /** Schema for Athena preview request */
 export const athenaPreviewSchema = z.object({
-  customersitekey: z.string().min(1, 'Customer site key is required'),
+  customersitekey: z.string().min(1, 'Customer site key is required').regex(siteKeyPattern, 'Site key contains invalid characters'),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be YYYY-MM-DD'),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be YYYY-MM-DD'),
 });
 
 /** Schema for Athena sync request */
 export const athenaSyncSchema = z.object({
-  customersitekey: z.string().min(1, 'Customer site key is required'),
+  customersitekey: z.string().min(1, 'Customer site key is required').regex(siteKeyPattern, 'Site key contains invalid characters'),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be YYYY-MM-DD'),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be YYYY-MM-DD'),
   runIds: z.array(z.string().min(1)).optional(),

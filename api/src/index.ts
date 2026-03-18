@@ -25,7 +25,7 @@ import { db } from './db/client.js';
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: config.corsOrigin,
   credentials: true,
 }));
 app.use(express.json());
@@ -42,12 +42,13 @@ app.use('/api/v1/auth', authRouter);
 // Athena routes (requires auth)
 app.use('/api/v1/athena', athenaRouter);
 
-// Core routes
-app.use('/api/v1/sessions', sessionsRouter);
-app.use('/api/v1/sessions', stopsRouter);
-app.use('/api/v1/sessions', aggregationsRouter);
-app.use('/api/v1/sessions', patchesRouter);
-app.use('/api/v1/modes', modesRouter);
+// Core routes (requires auth — skipped in dev, enforced in prod)
+import { requireAuth } from './middleware/require-auth.js';
+app.use('/api/v1/sessions', requireAuth, sessionsRouter);
+app.use('/api/v1/sessions', requireAuth, stopsRouter);
+app.use('/api/v1/sessions', requireAuth, aggregationsRouter);
+app.use('/api/v1/sessions', requireAuth, patchesRouter);
+app.use('/api/v1/modes', requireAuth, modesRouter);
 
 // Register plugin routes
 const pluginRouter = express.Router();

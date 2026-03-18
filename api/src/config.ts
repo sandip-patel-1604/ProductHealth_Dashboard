@@ -4,6 +4,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   /** In dev mode, skip SSO auth and use default AWS credential chain (~/.aws) */
   isDev: (process.env.NODE_ENV ?? 'development') === 'development',
+  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
 
   // AWS / Athena
   awsRegion: process.env.AWS_REGION ?? 'us-east-1',

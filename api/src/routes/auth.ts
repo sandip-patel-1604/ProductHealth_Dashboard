@@ -15,7 +15,7 @@ const SESSION_COOKIE = 'ph_session';
 const COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'lax' as const,
-  secure: false, // dev — set to true in production
+  secure: !config.isDev,
   maxAge: 4 * 60 * 60 * 1000, // 4 hours
 };
 

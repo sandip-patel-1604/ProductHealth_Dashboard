@@ -9,6 +9,8 @@ export function SSOLogin() {
   const [deviceCode, setDeviceCode] = useState('');
   const [error, setError] = useState('');
   const pollTimerRef = useRef<ReturnType<typeof setInterval>>();
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -50,10 +52,10 @@ export function SSOLogin() {
         }
       }, interval);
 
-      // Auto-stop after expiry
+      // Auto-stop after expiry — use ref to avoid stale closure
       setTimeout(() => {
         stopPolling();
-        if (phase === 'waiting') {
+        if (phaseRef.current === 'waiting') {
           setPhase('error');
           setError('SSO authorization timed out. Please try again.');
         }
