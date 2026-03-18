@@ -25,10 +25,19 @@ services:
     volumes:
       - ./api/src:/app/api/src
       - ./shared/src:/app/shared/src
+      - ~/.aws:/root/.aws:ro
     environment:
       DATABASE_URL: postgresql://ph_user:${DB_PASSWORD:-ph_dev_pass}@db:5432/product_health
       NODE_ENV: development
       PORT: 3000
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_SSO_START_URL: ${AWS_SSO_START_URL:-}
+      AWS_SSO_REGION: ${AWS_SSO_REGION:-us-east-1}
+      AWS_SSO_ACCOUNT_ID: ${AWS_SSO_ACCOUNT_ID:-}
+      AWS_SSO_ROLE_NAME: ${AWS_SSO_ROLE_NAME:-}
+      ATHENA_OUTPUT_BUCKET: ${ATHENA_OUTPUT_BUCKET:-}
+      ATHENA_WORKGROUP: ${ATHENA_WORKGROUP:-primary}
+      ATHENA_DATABASE: ${ATHENA_DATABASE:-qa}
     depends_on:
       db:
         condition: service_healthy

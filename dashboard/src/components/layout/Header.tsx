@@ -2,7 +2,12 @@ import { useStore } from '../../store/useStore';
 import { useSessions, useDeleteSession } from '../../hooks/useSessions';
 import { modes } from '../../modes/registry';
 
-export function Header() {
+interface HeaderProps {
+  onLogout?: () => void;
+  isLoggingOut?: boolean;
+}
+
+export function Header({ onLogout, isLoggingOut }: HeaderProps) {
   const activeSessionId = useStore((s) => s.activeSessionId);
   const setActiveSession = useStore((s) => s.setActiveSession);
   const activeMode = useStore((s) => s.activeMode);
@@ -27,6 +32,16 @@ export function Header() {
         <h1 className="text-lg font-bold tracking-wide text-white">
           ProductHealth Dashboard
         </h1>
+
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            disabled={isLoggingOut}
+            className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md px-2 py-1 disabled:opacity-50"
+          >
+            {isLoggingOut ? 'Signing out...' : 'Sign out'}
+          </button>
+        )}
 
         {sessions.length > 0 && (
           <div className="flex items-center gap-2">

@@ -8,5 +8,11 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
+  // Surface AWS/SSO configuration errors clearly to the user
+  if (err.message.includes('SSO') || err.message.includes('AWS')) {
+    res.status(503).json({ error: err.message });
+    return;
+  }
+
   res.status(500).json({ error: 'Internal server error' });
 }

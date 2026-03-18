@@ -11,7 +11,11 @@
     "migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-athena": "^3.700.0",
+    "@aws-sdk/client-sso": "^3.700.0",
+    "@aws-sdk/client-sso-oidc": "^3.700.0",
     "@ph/shared": "file:../shared",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "drizzle-orm": "^0.39.0",
     "express": "^5.1.0",
@@ -21,6 +25,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/multer": "^1.4.12",

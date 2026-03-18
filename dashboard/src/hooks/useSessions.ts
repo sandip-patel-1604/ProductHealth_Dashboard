@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sessionsApi } from '../api/sessions.api';
+import { sessionsApi, athenaApi } from '../api/sessions.api';
+import type { AthenaSyncRequest } from '../lib/types';
 
 export function useSessions() {
   return useQuery({
@@ -16,16 +17,6 @@ export function useSession(id: string | null) {
   });
 }
 
-export function useUploadSession() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: sessionsApi.upload,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sessions'] });
-    },
-  });
-}
-
 export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
@@ -33,5 +24,41 @@ export function useDeleteSession() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] });
     },
+  });
+}
+
+// ─── Athena Hooks ─────────────────────────────────────────
+
+export function useAthenaPreview() {
+  return useMutation({
+    mutationFn: (body: { customersitekey: string; startDate: string; endDate: string }) =>
+      athenaApi.preview(body),
+  });
+}
+
+export function useAthenaSites() {
+  return useQuery({
+    queryKey: ['athena-sites'],
+    queryFn: athenaApi.listSites,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
+}
+
+export function useAthenaSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AthenaSyncRequest) => athenaApi.sync(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sessions'] });
+    },
+  });
+}
+
+export function useAthenaSyncStatus(site: string | null) {
+  return useQuery({
+    queryKey: ['athena-sync-status', site],
+    queryFn: () => athenaApi.syncStatus(site!),
+    enabled: !!site,
+    staleTime: 30_000,
   });
 }

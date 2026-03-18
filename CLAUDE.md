@@ -46,11 +46,14 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 ## Architecture
 
 ```
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│   Dashboard   │◄────►│   API Server  │◄────►│  PostgreSQL   │
-│  React + Vite │ :5173│  Express + TS │ :3000│    16-alpine  │ :5432
-│  TailwindCSS  │      │  Drizzle ORM  │      │ product_health│
-└──────────────┘      └──────────────┘      └──────────────┘
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Dashboard   │◄────►│   API Server  │◄────►│  PostgreSQL   │     │  AWS Athena   │
+│  React + Vite │ :5173│  Express + TS │ :3000│    16-alpine  │ :5432│ qa.fact_date_ │
+│  TailwindCSS  │      │  Drizzle ORM  │      │ product_health│     │    range      │
+└──────────────┘      └──────────────┘      └──────────────┘      └──────────────┘
+                             │                                           ▲
+                             │  AWS SSO OIDC device auth flow            │
+                             └───────────────────────────────────────────┘
 ```
 
 | Concern | Decision |
@@ -63,13 +66,16 @@ This file provides guidance for AI assistants (Claude and others) working in thi
 | Database | PostgreSQL 16 |
 | Shared types | `@ph/shared` monorepo package |
 | Request validation | Zod (shared between frontend and API) |
-| File upload | Multer (Express middleware) |
-| ODS parsing | SheetJS (xlsx) — server-side |
+| Data source | AWS Athena (`qa.fact_date_range`) — session metadata |
+| Authentication | AWS SSO OIDC device authorization flow (browser redirect) |
+| AWS SDK | `@aws-sdk/client-athena`, `@aws-sdk/client-sso-oidc`, `@aws-sdk/client-sso` |
+| File upload | ~~Multer~~ (removed — replaced by Athena integration) |
+| ODS parsing | SheetJS (xlsx) — server-side (retained for future stop record parsing) |
 | Charts | Recharts |
 | Styling | Tailwind CSS v4 |
 | Environment isolation | Docker + docker-compose (works on Mac + Ubuntu 18.04+) |
 | Deployment / hosting | Dashboard: nginx (prod Docker stage), API: Node.js |
-| Auth mechanism | TBD |
+| Auth mechanism | Dev: IAM keys (~/.aws), Prod: AWS SSO OIDC device auth |
 | CI/CD | TBD |
 
 See `PLAN.md` for the full phased implementation plan.
@@ -136,48 +142,52 @@ ProductHealth_Dashboard/
 │       └── constants.ts            # Default modes, API prefix
 ├── api/                            # Express API server
 │   ├── src/
-│   │   ├── index.ts                # Express app entry
-│   │   ├── config.ts               # Environment config
+│   │   ├── index.ts                # Express app entry, route registration
+│   │   ├── config.ts               # Environment config (DB, AWS, Athena, SSO)
 │   │   ├── db/                     # Drizzle ORM schema + migrations
+│   │   │   ├── schema.ts           # Tables: test_sessions, stop_records, patches, athena_sync_log
 │   │   │   ├── client.ts           # Database connection pool
-│   │   │   ├── schema.ts           # Drizzle table definitions
-│   │   │   └── migrate.ts          # SQL migration runner
-│   │   ├── routes/                 # REST endpoint handlers
-│   │   │   ├── sessions.ts         # CRUD + file upload
+│   │   │   └── migrate.ts          # SQL migration runner (runs on startup)
+│   │   ├── routes/
+│   │   │   ├── auth.ts             # SSO auth endpoints (status, start, poll, logout)
+│   │   │   ├── athena.ts           # Athena endpoints (sites, preview, sync, sync-status)
+│   │   │   ├── sessions.ts         # Session list/get/delete
 │   │   │   ├── stops.ts            # Filtered/paginated stop queries
 │   │   │   ├── aggregations.ts     # KPIs, charts, heatmap data
 │   │   │   ├── patches.ts          # Patch management
 │   │   │   └── modes.ts            # Dashboard mode CRUD
-│   │   ├── services/               # Business logic
-│   │   │   ├── parser.service.ts   # ODS + patch file parsing
-│   │   │   ├── session.service.ts  # Session CRUD
+│   │   ├── services/
+│   │   │   ├── sso-auth.service.ts # SSO OIDC device auth flow + credential store
+│   │   │   ├── athena.service.ts   # Athena query execution
+│   │   │   ├── tag-parser.service.ts # Parse tag field into structured data
+│   │   │   ├── sync.service.ts     # Preview + sync orchestration (Athena → PostgreSQL)
+│   │   │   ├── session.service.ts  # Session list/get/delete
+│   │   │   ├── parser.service.ts   # ODS + patch file parsing (legacy, retained for future use)
 │   │   │   └── aggregation.service.ts # KPI + chart queries
-│   │   ├── middleware/             # Express middleware
+│   │   ├── middleware/
+│   │   │   ├── require-auth.ts     # Auth gate (skips in dev, requires SSO in prod)
+│   │   │   └── error-handler.ts    # Express error handler
 │   │   └── plugins/               # Dashboard mode plugins
-│   │       ├── registry.ts         # Plugin registration API
-│   │       ├── overview.plugin.ts
-│   │       ├── trend.plugin.ts
-│   │       ├── heatmap.plugin.ts
-│   │       └── comparison.plugin.ts
-│   └── Dockerfile                  # Multi-stage: dev + build + prod
+│   └── Dockerfile
 ├── dashboard/                      # React 19 frontend
 │   ├── src/
-│   │   ├── api/                    # API client functions (fetch wrappers)
-│   │   ├── hooks/                  # React Query hooks
+│   │   ├── main.tsx                # App entry with AuthGate wrapper
+│   │   ├── App.tsx                 # Main layout with AthenaSync + ModeRouter
+│   │   ├── api/                    # API client functions
+│   │   ├── hooks/
+│   │   │   ├── useAuth.ts          # Auth status, SSO start/poll, logout
+│   │   │   └── useSessions.ts      # Session + Athena preview/sync hooks
+│   │   ├── components/
+│   │   │   ├── auth/               # AuthGate + SSOLogin
+│   │   │   ├── athena/             # AthenaSync (preview table, selective import)
+│   │   │   └── layout/             # Header (session dropdown, mode tabs)
 │   │   ├── modes/                  # Dashboard mode components (lazy-loaded)
-│   │   │   ├── registry.ts         # Frontend mode registry
-│   │   │   ├── ModeRouter.tsx      # Renders active mode component
-│   │   │   ├── overview/           # Session overview (KPIs + table + patches)
-│   │   │   ├── trend/              # Multi-session trends (stub)
-│   │   │   ├── heatmap/            # Spatial visualization (stub)
-│   │   │   └── comparison/         # Side-by-side comparison (stub)
-│   │   ├── components/             # Shared UI components
-│   │   ├── store/                  # Zustand (UI state only)
+│   │   ├── store/                  # Zustand (UI state: session, site, filters)
 │   │   └── lib/                    # Type re-exports from @ph/shared
-│   └── Dockerfile                  # Multi-stage: dev + build + prod (nginx)
+│   └── Dockerfile
 ├── docker-compose.yml              # Orchestrates db + api + dashboard
 ├── .env.example                    # Environment variable template
-├── PLAN.md
+├── .claude/launch.json             # Dev server configs for Claude Code preview
 ├── CLAUDE.md                       # This file
 └── LICENSE
 ```

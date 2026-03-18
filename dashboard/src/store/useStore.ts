@@ -7,6 +7,7 @@ interface DashboardState {
   // Session & mode selection (persisted)
   activeSessionId: string | null;
   activeMode: string;
+  selectedSite: string | null;
 
   // UI state (ephemeral)
   filters: FilterState;
@@ -15,6 +16,7 @@ interface DashboardState {
   // Actions
   setActiveSession: (id: string | null) => void;
   setActiveMode: (mode: string) => void;
+  setSelectedSite: (site: string | null) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
   setSort: (sort: SortConfig) => void;
@@ -25,12 +27,15 @@ export const useStore = create<DashboardState>()(
     (set) => ({
       activeSessionId: null,
       activeMode: 'overview',
+      selectedSite: null,
       filters: { ...EMPTY_FILTERS },
       sort: { key: 'timestamp', direction: 'asc' },
 
       setActiveSession: (id) => set({ activeSessionId: id }),
 
       setActiveMode: (mode) => set({ activeMode: mode }),
+
+      setSelectedSite: (site) => set({ selectedSite: site }),
 
       setFilters: (partial) =>
         set((state) => ({
@@ -46,6 +51,7 @@ export const useStore = create<DashboardState>()(
       partialize: (state) => ({
         activeSessionId: state.activeSessionId,
         activeMode: state.activeMode,
+        selectedSite: state.selectedSite,
       }),
     }
   )
