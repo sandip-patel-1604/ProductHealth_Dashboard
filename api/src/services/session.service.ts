@@ -122,11 +122,18 @@ function mapStopRecord(s: typeof stopRecords.$inferSelect): StopRecord {
   };
 }
 
+/** Extract trailing digits from a robot serial string (e.g. 'ACT2EUP2RNJ220' → 220) */
+function extractRobotNumber(serial: string): number {
+  const match = serial.match(/(\d+)$/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 function mapAthenaStopToRecord(row: AthenaStopRow, index: number, sessionId: string) {
   return {
     sessionId,
     rowIndex: index,
-    robotId: parseInt(row.robot_id, 10) || 0,
+    // Extract numeric suffix from serial (e.g. 'ACT2EUP2RNJ220' → 220)
+    robotId: extractRobotNumber(row.robot_id),
     timestamp: row.date,
     playbackUrl: '',
     robotIdTimestamp: '',
@@ -139,7 +146,7 @@ function mapAthenaStopToRecord(row: AthenaStopRow, index: number, sessionId: str
     stopDuration: parseFloat(row.stop_duration) || 0,
     triageComment: '',
     supportInterventionMade: row.support_intervention_made === 'true',
-    palletLoaded: row.pallet_loaded === 'true',
+    palletLoaded: false,
     floor: '',
     client: '',
     application: '',
@@ -220,12 +227,15 @@ export async function fetchAndCacheStops(
     };
   }
 
-  // 4. Fetch from Athena
+  // 4. Fetch from Athena (scoped by site + time window + robot IDs)
+  // Session metadata has numeric IDs (e.g. 220) that match the trailing digits
+  // of Athena's robot_id serial strings (e.g. 'ACT2EUP2RNJ220').
   const athenaStops = await queryStopRecords(
     credentials,
     session.customersitekey,
     session.startTime.toISOString(),
     session.endTime.toISOString(),
+    session.robotIds,
   );
 
   // 5. Determine if we should cache (session startTime within stopsCacheDays of today)
@@ -237,18 +247,21 @@ export async function fetchAndCacheStops(
 
   if (shouldCache && mappedStops.length > 0) {
     // 6. Delete any partial cache, insert all stops, update session metadata
-    await db.delete(stopRecords).where(eq(stopRecords.sessionId, sessionId));
+    // Use a transaction to prevent race conditions from concurrent fetch-stops calls
+    await db.transaction(async (tx) => {
+      await tx.delete(stopRecords).where(eq(stopRecords.sessionId, sessionId));
 
-    for (let i = 0; i < mappedStops.length; i += CHUNK_SIZE) {
-      const chunk = mappedStops.slice(i, i + CHUNK_SIZE);
-      await db.insert(stopRecords).values(chunk);
-    }
+      for (let i = 0; i < mappedStops.length; i += CHUNK_SIZE) {
+        const chunk = mappedStops.slice(i, i + CHUNK_SIZE);
+        await tx.insert(stopRecords).values(chunk);
+      }
 
-    await db.execute(sql`
-      UPDATE test_sessions
-      SET stops_cached_at = NOW(), stop_count = ${mappedStops.length}
-      WHERE id = ${sessionId}::uuid
-    `);
+      await tx.execute(sql`
+        UPDATE test_sessions
+        SET stops_cached_at = NOW(), stop_count = ${mappedStops.length}
+        WHERE id = ${sessionId}::uuid
+      `);
+    });
   }
 
   return {

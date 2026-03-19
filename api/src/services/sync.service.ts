@@ -182,7 +182,7 @@ export async function syncSessions(
       // pg driver returns timestamptz as Date objects — convert to ISO strings for Athena queries
       const st = row.start_time instanceof Date ? row.start_time.toISOString() : String(row.start_time);
       const et = row.end_time instanceof Date ? row.end_time.toISOString() : String(row.end_time);
-      importedSessions.push({ id: row.id, startTime: st, endTime: et });
+      importedSessions.push({ id: row.id, startTime: st, endTime: et, robotIds: finalRobotIds });
     }
   }
 
@@ -194,6 +194,7 @@ export async function syncSessions(
         site,
         session.startTime,
         session.endTime,
+        session.robotIds,
       );
       await db.execute(sql`
         UPDATE test_sessions SET stop_count = ${count} WHERE id = ${session.id}::uuid

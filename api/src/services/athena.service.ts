@@ -213,7 +213,6 @@ export interface AthenaStopRow {
   vros_sw_version: string;
   stop_duration: string;
   support_intervention_made: string;
-  pallet_loaded: string;
 }
 
 /**
@@ -224,6 +223,7 @@ export async function queryStopCount(
   site: string,
   startTime: string,
   endTime: string,
+  robotIds?: number[],
 ): Promise<number> {
   const client = getAthenaClient(credentials);
 
@@ -231,12 +231,19 @@ export async function queryStopCount(
   const safeStart = startTime.replace(/'/g, "''");
   const safeEnd = endTime.replace(/'/g, "''");
 
+  let robotFilter = '';
+  if (robotIds && robotIds.length > 0) {
+    const pattern = robotIds.map((id) => String(id)).join('|');
+    robotFilter = `AND regexp_like(robot_id, '(${pattern})$')`;
+  }
+
   const sql = `
     SELECT COUNT(*) as cnt
     FROM ${config.athenaStopsTable}
     WHERE customersitekey = '${safeSite}'
       AND date >= TIMESTAMP '${safeStart}'
       AND date <= TIMESTAMP '${safeEnd}'
+      ${robotFilter}
   `;
 
   const rows = await executeQuery(client, sql);
@@ -252,12 +259,25 @@ export async function queryStopRecords(
   site: string,
   startTime: string,
   endTime: string,
+  robotIds?: number[],
 ): Promise<AthenaStopRow[]> {
   const client = getAthenaClient(credentials);
 
   const safeSite = site.replace(/'/g, "''");
-  const safeStart = startTime.replace(/'/g, "''");
-  const safeEnd = endTime.replace(/'/g, "''");
+  // Convert ISO 8601 (e.g. '2026-03-17T17:38:00.000Z') to Athena TIMESTAMP format ('2026-03-17 17:38:00')
+  const toAthenaTs = (iso: string) => iso.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace('Z', '');
+  const safeStart = toAthenaTs(startTime.replace(/'/g, "''"));
+  const safeEnd = toAthenaTs(endTime.replace(/'/g, "''"));
+
+  // Build optional robot_id filter
+  // Session metadata stores numeric IDs (e.g. 220) which match the trailing
+  // digits of Athena's robot_id serial strings (e.g. 'ACT2EUP2RNJ220').
+  // Use regexp_like to match serials ending with any of the numeric IDs.
+  let robotFilter = '';
+  if (robotIds && robotIds.length > 0) {
+    const pattern = robotIds.map((id) => String(id)).join('|');
+    robotFilter = `AND regexp_like(robot_id, '(${pattern})$')`;
+  }
 
   const sql = `
     SELECT
@@ -276,12 +296,12 @@ export async function queryStopRecords(
       nrv_sw_version,
       vros_sw_version,
       stop_duration,
-      support_intervention_made,
-      pallet_loaded
+      support_intervention_made
     FROM ${config.athenaStopsTable}
     WHERE customersitekey = '${safeSite}'
       AND date >= TIMESTAMP '${safeStart}'
       AND date <= TIMESTAMP '${safeEnd}'
+      ${robotFilter}
     ORDER BY date
   `;
 
@@ -304,6 +324,5 @@ export async function queryStopRecords(
     vros_sw_version: r.vros_sw_version ?? '',
     stop_duration: r.stop_duration ?? '',
     support_intervention_made: r.support_intervention_made ?? '',
-    pallet_loaded: r.pallet_loaded ?? '',
   }));
 }

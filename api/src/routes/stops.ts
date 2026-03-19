@@ -9,7 +9,7 @@ const router = Router();
 /** GET /sessions/:id/stops — Query stops with filters + sort + pagination */
 router.get('/:id/stops', validateQuery(stopQuerySchema), async (req, res, next) => {
   try {
-    const result = await queryStops(param(req.params.id), req.query as unknown as StopQueryInput);
+    const result = await queryStops(param(req.params.id), ((req as any).validatedQuery ?? req.query) as StopQueryInput);
     res.json(result);
   } catch (err) {
     next(err);

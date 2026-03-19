@@ -18,8 +18,8 @@ export async function getKPIs(sessionId: string): Promise<KPIData | null> {
 
   const stopsPerRobot = result.robotCount > 0 ? result.totalStops / result.robotCount : 0;
 
-  // Worst robot (most stops)
-  const [worstRobot] = await db
+  // Worst robot(s) (most stops — may be a tie)
+  const robotCounts = await db
     .select({
       robotId: stopRecords.robotId,
       count: sql<number>`count(*)::int`,
@@ -27,8 +27,10 @@ export async function getKPIs(sessionId: string): Promise<KPIData | null> {
     .from(stopRecords)
     .where(eq(stopRecords.sessionId, sessionId))
     .groupBy(stopRecords.robotId)
-    .orderBy(sql`count(*) desc`)
-    .limit(1);
+    .orderBy(sql`count(*) desc`);
+
+  const maxCount = robotCounts[0]?.count ?? 0;
+  const worstRobots = robotCounts.filter((r) => r.count === maxCount);
 
   // Top L2 reason
   const [topL2] = await db
@@ -48,8 +50,10 @@ export async function getKPIs(sessionId: string): Promise<KPIData | null> {
     avgDuration: result.avgDuration,
     robotCount: result.robotCount,
     stopsPerRobot,
-    worstRobot: worstRobot?.robotId ?? 0,
-    worstCount: worstRobot?.count ?? 0,
+    worstRobot: worstRobots.length === 1
+      ? worstRobots[0].robotId
+      : worstRobots.map((r) => r.robotId).join(', '),
+    worstCount: maxCount,
     topL2: topL2?.reason ?? '',
     topL2Count: topL2?.count ?? 0,
   };
@@ -110,6 +114,7 @@ export async function queryStops(sessionId: string, query: StopQueryInput) {
     nexusSwVersion: s.nexusSwVersion,
     nrvSwVersion: s.nrvSwVersion,
     vrosSwVersion: s.vrosSwVersion,
+    robotSerial: s.robotSerial,
   }));
 
   return {

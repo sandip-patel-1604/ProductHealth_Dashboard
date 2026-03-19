@@ -105,7 +105,7 @@ export interface KPIData {
   avgDuration: number;
   robotCount: number;
   stopsPerRobot: number;
-  worstRobot: number;
+  worstRobot: number | string;
   worstCount: number;
   topL2: string;
   topL2Count: number;

@@ -3,9 +3,13 @@
   "configurations": [
     {
       "name": "dashboard",
-      "runtimeExecutable": "docker",
-      "runtimeArgs": ["compose", "up", "--build", "dashboard"],
-      "port": 5173
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "dashboard",
+      "port": 5173,
+      "env": {
+        "API_URL": "http://localhost:3000"
+      }
     },
     {
       "name": "api",

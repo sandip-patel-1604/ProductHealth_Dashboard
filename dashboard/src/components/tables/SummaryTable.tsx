@@ -125,7 +125,7 @@ export function SummaryTable() {
           <tbody className="divide-y divide-slate-800 text-slate-200">
             {stops.map((stop) => (
               <tr key={stop.id} className="hover:bg-slate-800/70">
-                <td className="px-3 py-2 font-mono">{stop.robotId}</td>
+                <td className="px-3 py-2 font-mono">{stop.robotId || stop.robotSerial || '—'}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {stop.playbackUrl ? (
                     <a

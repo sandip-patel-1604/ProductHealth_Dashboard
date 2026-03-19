@@ -8,7 +8,8 @@ export function validateQuery(schema: ZodSchema) {
       res.status(400).json({ error: result.error.flatten().fieldErrors });
       return;
     }
-    req.query = result.data;
+    // Express 5 makes req.query a getter-only property, so store parsed data separately
+    (req as any).validatedQuery = result.data;
     next();
   };
 }

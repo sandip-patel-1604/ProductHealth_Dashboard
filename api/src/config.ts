@@ -12,7 +12,7 @@ export const config = {
   athenaWorkgroup: process.env.ATHENA_WORKGROUP ?? 'primary',
   athenaOutputBucket: process.env.ATHENA_OUTPUT_BUCKET ?? '',
   /** Fully-qualified Athena table for stop reports (database.table) */
-  athenaStopsTable: process.env.ATHENA_STOPS_TABLE ?? 'vacna_ds.fact_stop_reports',
+  athenaStopsTable: process.env.ATHENA_STOPS_TABLE ?? 'fact_stop_reports',
   /** Number of days to cache stop records locally (default 30) */
   stopsCacheDays: parseInt(process.env.STOPS_CACHE_DAYS ?? '30', 10),
 

@@ -3,13 +3,14 @@ import { Header } from './components/layout/Header';
 import { AthenaSync } from './components/athena/AthenaSync';
 import { ModeRouter } from './modes/ModeRouter';
 import { useStore } from './store/useStore';
-import { useSessions } from './hooks/useSessions';
+import { useSessions, useAutoFetchStops } from './hooks/useSessions';
 import { useLogout, useAuthStatus } from './hooks/useAuth';
 
 function App() {
   const activeSessionId = useStore((s) => s.activeSessionId);
   const { data: sessions = [] } = useSessions();
   const hasActiveSession = !!activeSessionId && sessions.some((s) => s.id === activeSessionId);
+  const { isPending: isFetchingStops } = useAutoFetchStops(hasActiveSession ? activeSessionId : null);
   const [showSync, setShowSync] = useState(false);
   const logout = useLogout();
   const { data: authData } = useAuthStatus();
@@ -49,6 +50,17 @@ function App() {
           >
             Hide sync panel
           </button>
+        )}
+
+        {/* Loading indicator while fetching stops from Athena */}
+        {isFetchingStops && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 text-sm text-emerald-200 flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Fetching stop records from Athena...
+          </div>
         )}
 
         {/* Active mode content */}
