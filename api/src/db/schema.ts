@@ -40,9 +40,8 @@ export const testSessions = pgTable('test_sessions', {
 ]);
 
 export const stopRecords = pgTable('stop_records', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: text('id').primaryKey(),  // Athena event_id — natural key from fact_stop_reports
   sessionId: uuid('session_id').notNull().references(() => testSessions.id, { onDelete: 'cascade' }),
-  rowIndex: integer('row_index').notNull(),
   robotId: integer('robot_id').notNull(),
   timestamp: text('timestamp').notNull(),
   playbackUrl: text('playback_url').notNull().default(''),
@@ -66,7 +65,6 @@ export const stopRecords = pgTable('stop_records', {
   // Athena-sourced stops may have alphanumeric robot serial instead of numeric ID
   robotSerial: text('robot_serial').notNull().default(''),
 }, (table) => [
-  uniqueIndex('uq_stop_per_session').on(table.sessionId, table.rowIndex),
   index('idx_stops_session').on(table.sessionId),
   index('idx_stops_robot').on(table.robotId),
   index('idx_stops_l1').on(table.l1StopReason),

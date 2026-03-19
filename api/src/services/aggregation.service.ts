@@ -1,4 +1,4 @@
-import { eq, sql, and, gte, lte } from 'drizzle-orm';
+import { eq, sql, and, gte, lte, inArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { stopRecords } from '../db/schema.js';
 import type { KPIData, StopQueryInput } from '@ph/shared';
@@ -32,14 +32,17 @@ export async function getKPIs(sessionId: string): Promise<KPIData | null> {
   const maxCount = robotCounts[0]?.count ?? 0;
   const worstRobots = robotCounts.filter((r) => r.count === maxCount);
 
-  // Top L2 reason
+  // Top L2 reason (exclude WAITING_FOR_RZ — expected fleet behavior, not actionable)
   const [topL2] = await db
     .select({
       reason: stopRecords.l2StopReason,
       count: sql<number>`count(*)::int`,
     })
     .from(stopRecords)
-    .where(eq(stopRecords.sessionId, sessionId))
+    .where(and(
+      eq(stopRecords.sessionId, sessionId),
+      sql`${stopRecords.l3StopReason} != 'WAITING_FOR_RZ'`,
+    ))
     .groupBy(stopRecords.l2StopReason)
     .orderBy(sql`count(*) desc`)
     .limit(1);
@@ -62,11 +65,11 @@ export async function getKPIs(sessionId: string): Promise<KPIData | null> {
 export async function queryStops(sessionId: string, query: StopQueryInput) {
   const conditions = [eq(stopRecords.sessionId, sessionId)];
 
-  if (query.robotId) conditions.push(eq(stopRecords.robotId, query.robotId));
-  if (query.l1StopReason) conditions.push(eq(stopRecords.l1StopReason, query.l1StopReason));
-  if (query.l2StopReason) conditions.push(eq(stopRecords.l2StopReason, query.l2StopReason));
-  if (query.l3StopReason) conditions.push(eq(stopRecords.l3StopReason, query.l3StopReason));
-  if (query.stopLocationCode) conditions.push(eq(stopRecords.stopLocationCode, query.stopLocationCode));
+  if (query.robotIds?.length) conditions.push(inArray(stopRecords.robotId, query.robotIds));
+  if (query.l1StopReasons?.length) conditions.push(inArray(stopRecords.l1StopReason, query.l1StopReasons));
+  if (query.l2StopReasons?.length) conditions.push(inArray(stopRecords.l2StopReason, query.l2StopReasons));
+  if (query.l3StopReasons?.length) conditions.push(inArray(stopRecords.l3StopReason, query.l3StopReasons));
+  if (query.stopLocationCodes?.length) conditions.push(inArray(stopRecords.stopLocationCode, query.stopLocationCodes));
   if (query.minDuration != null) conditions.push(gte(stopRecords.stopDuration, query.minDuration));
   if (query.maxDuration != null) conditions.push(lte(stopRecords.stopDuration, query.maxDuration));
 

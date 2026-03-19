@@ -7,13 +7,16 @@ export const sessionUploadSchema = z.object({
   notes: z.string().optional().default(''),
 });
 
+/** Transform comma-separated string into array (e.g. "1,2,3" → ["1","2","3"]) */
+const csvToArray = z.string().transform((s) => s.split(',').filter(Boolean));
+
 /** Schema for stop query parameters */
 export const stopQuerySchema = z.object({
-  robotId: z.coerce.number().optional(),
-  l1StopReason: z.string().optional(),
-  l2StopReason: z.string().optional(),
-  l3StopReason: z.string().optional(),
-  stopLocationCode: z.string().optional(),
+  robotIds: csvToArray.pipe(z.array(z.coerce.number())).optional(),
+  l1StopReasons: csvToArray.optional(),
+  l2StopReasons: csvToArray.optional(),
+  l3StopReasons: csvToArray.optional(),
+  stopLocationCodes: csvToArray.optional(),
   minDuration: z.coerce.number().optional(),
   maxDuration: z.coerce.number().optional(),
   sortBy: z.string().optional().default('timestamp'),

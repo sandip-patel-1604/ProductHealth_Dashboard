@@ -19,7 +19,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
       notes: testSessions.notes,
       createdAt: testSessions.createdAt,
       tag: testSessions.tag,
-      stopCount: sql<number>`COALESCE(stop_count, (SELECT count(*) FROM stop_records WHERE session_id = ${testSessions.id})::int, 0)`,
+      stopCount: sql<number>`COALESCE(stop_count, (SELECT count(*) FROM stop_records WHERE session_id = "test_sessions"."id")::int, 0)`,
       stopsCachedAt: testSessions.stopsCachedAt,
     })
     .from(testSessions)
@@ -56,7 +56,7 @@ export async function getSession(id: string) {
     .select()
     .from(stopRecords)
     .where(eq(stopRecords.sessionId, id))
-    .orderBy(stopRecords.rowIndex);
+    .orderBy(stopRecords.timestamp);
 
   const sessionPatches = await db
     .select()
@@ -128,10 +128,10 @@ function extractRobotNumber(serial: string): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
-function mapAthenaStopToRecord(row: AthenaStopRow, index: number, sessionId: string) {
+function mapAthenaStopToRecord(row: AthenaStopRow, sessionId: string) {
   return {
+    id: row.event_id,
     sessionId,
-    rowIndex: index,
     // Extract numeric suffix from serial (e.g. 'ACT2EUP2RNJ220' → 220)
     robotId: extractRobotNumber(row.robot_id),
     timestamp: row.date,
@@ -159,7 +159,7 @@ function mapAthenaStopToRecord(row: AthenaStopRow, index: number, sessionId: str
 
 function toStopRecord(dbRow: ReturnType<typeof mapAthenaStopToRecord>): StopRecord {
   return {
-    id: '',
+    id: dbRow.id,
     robotId: dbRow.robotId,
     timestamp: dbRow.timestamp,
     playbackUrl: dbRow.playbackUrl,
@@ -184,6 +184,45 @@ function toStopRecord(dbRow: ReturnType<typeof mapAthenaStopToRecord>): StopReco
   };
 }
 
+// ─── Purge stale cached stop records ──────────────────────────────────────────
+
+/**
+ * Delete cached stop records older than stopsCacheDays.
+ * Resets stopsCachedAt so the next access re-fetches from Athena.
+ * Called on API startup and can be called periodically.
+ */
+export async function purgeStaleStopCache(): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - config.stopsCacheDays);
+
+  // Find sessions with stale caches
+  const stale = await db
+    .select({ id: testSessions.id })
+    .from(testSessions)
+    .where(sql`stops_cached_at IS NOT NULL AND stops_cached_at < ${cutoff.toISOString()}`);
+
+  if (stale.length === 0) return 0;
+
+  const staleIds = stale.map((s) => s.id);
+
+  await db.transaction(async (tx) => {
+    // Delete stop records for stale sessions
+    await tx.execute(sql`
+      DELETE FROM stop_records
+      WHERE session_id = ANY(${staleIds}::uuid[])
+    `);
+
+    // Reset cache timestamp
+    await tx.execute(sql`
+      UPDATE test_sessions
+      SET stops_cached_at = NULL
+      WHERE id = ANY(${staleIds}::uuid[])
+    `);
+  });
+
+  return stale.length;
+}
+
 // ─── Lazy-load stop records from Athena ───────────────────────────────────────
 
 const CHUNK_SIZE = 100;
@@ -205,7 +244,7 @@ export async function fetchAndCacheStops(
       .select()
       .from(stopRecords)
       .where(eq(stopRecords.sessionId, sessionId))
-      .orderBy(stopRecords.rowIndex);
+      .orderBy(stopRecords.timestamp);
     return {
       stopCount: stops.length,
       cached: true,
@@ -213,23 +252,34 @@ export async function fetchAndCacheStops(
     };
   }
 
-  // 3. If already cached, return from DB
+  // 3. If cached within the last stopsCacheDays, return from local DB
   if (session.stopsCachedAt) {
-    const stops = await db
-      .select()
-      .from(stopRecords)
-      .where(eq(stopRecords.sessionId, sessionId))
-      .orderBy(stopRecords.rowIndex);
-    return {
-      stopCount: session.stopCount ?? stops.length,
-      cached: true,
-      stops: stops.map(mapStopRecord),
-    };
+    const cacheExpiry = new Date();
+    cacheExpiry.setDate(cacheExpiry.getDate() - config.stopsCacheDays);
+
+    if (session.stopsCachedAt >= cacheExpiry) {
+      const stops = await db
+        .select()
+        .from(stopRecords)
+        .where(eq(stopRecords.sessionId, sessionId))
+        .orderBy(stopRecords.timestamp);
+      return {
+        stopCount: session.stopCount ?? stops.length,
+        cached: true,
+        stops: stops.map(mapStopRecord),
+      };
+    }
+
+    // Cache is stale — purge it so we re-fetch from Athena below
+    await db.delete(stopRecords).where(eq(stopRecords.sessionId, sessionId));
+    await db.execute(sql`
+      UPDATE test_sessions
+      SET stops_cached_at = NULL
+      WHERE id = ${sessionId}::uuid
+    `);
   }
 
   // 4. Fetch from Athena (scoped by site + time window + robot IDs)
-  // Session metadata has numeric IDs (e.g. 220) that match the trailing digits
-  // of Athena's robot_id serial strings (e.g. 'ACT2EUP2RNJ220').
   const athenaStops = await queryStopRecords(
     credentials,
     session.customersitekey,
@@ -238,16 +288,10 @@ export async function fetchAndCacheStops(
     session.robotIds,
   );
 
-  // 5. Determine if we should cache (session startTime within stopsCacheDays of today)
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - config.stopsCacheDays);
-  const shouldCache = session.startTime >= cutoff;
+  const mappedStops = athenaStops.map((r) => mapAthenaStopToRecord(r, sessionId));
 
-  const mappedStops = athenaStops.map((r, i) => mapAthenaStopToRecord(r, i, sessionId));
-
-  if (shouldCache && mappedStops.length > 0) {
-    // 6. Delete any partial cache, insert all stops, update session metadata
-    // Use a transaction to prevent race conditions from concurrent fetch-stops calls
+  // 5. Always cache Athena results locally
+  if (mappedStops.length > 0) {
     await db.transaction(async (tx) => {
       await tx.delete(stopRecords).where(eq(stopRecords.sessionId, sessionId));
 
@@ -266,7 +310,7 @@ export async function fetchAndCacheStops(
 
   return {
     stopCount: mappedStops.length,
-    cached: shouldCache,
+    cached: true,
     stops: mappedStops.map(toStopRecord),
   };
 }

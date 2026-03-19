@@ -2,11 +2,11 @@ import type { StopRecord, PaginatedResponse } from '../lib/types';
 import { apiFetch } from './client';
 
 export interface StopQueryParams {
-  robotId?: number | null;
-  l1StopReason?: string;
-  l2StopReason?: string;
-  l3StopReason?: string;
-  stopLocationCode?: string;
+  robotIds?: number[];
+  l1StopReasons?: string[];
+  l2StopReasons?: string[];
+  l3StopReasons?: string[];
+  stopLocationCodes?: string[];
   minDuration?: number | null;
   maxDuration?: number | null;
   sortBy?: string;
@@ -19,7 +19,10 @@ export const stopsApi = {
   query: (sessionId: string, params: StopQueryParams = {}) => {
     const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
-      if (value != null && value !== '') {
+      if (value == null) continue;
+      if (Array.isArray(value)) {
+        if (value.length > 0) searchParams.set(key, value.join(','));
+      } else if (value !== '') {
         searchParams.set(key, String(value));
       }
     }

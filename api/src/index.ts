@@ -22,6 +22,7 @@ import './plugins/comparison.plugin.js';
 
 import { getModes } from './plugins/registry.js';
 import { db } from './db/client.js';
+import { purgeStaleStopCache } from './services/session.service.js';
 
 const app = express();
 
@@ -60,8 +61,18 @@ app.use('/api/v1', requireAuth, pluginRouter);
 // Error handling
 app.use(errorHandler);
 
-app.listen(config.port, '0.0.0.0', () => {
+app.listen(config.port, '0.0.0.0', async () => {
   console.log(`API server listening on port ${config.port}`);
+
+  // Purge cached stop records older than stopsCacheDays on startup
+  try {
+    const purged = await purgeStaleStopCache();
+    if (purged > 0) {
+      console.log(`Purged stale stop cache for ${purged} session(s)`);
+    }
+  } catch (err) {
+    console.error('Failed to purge stale stop cache:', err);
+  }
 });
 
 export default app;

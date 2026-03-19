@@ -136,6 +136,34 @@ async function migrate() {
       END $$;
     `);
 
+    // ── Migrate stop_records PK from UUID to event_id (text) ────────────
+    // Stop records are a cache of Athena data, so safe to drop and recreate.
+    await client.query(`
+      DO $$
+      BEGIN
+        -- Check if id column is still uuid type
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'stop_records' AND column_name = 'id' AND data_type = 'uuid'
+        ) THEN
+          -- Drop all cached stops (they'll be re-fetched from Athena on next access)
+          DELETE FROM stop_records;
+          -- Reset cache timestamps so sessions re-fetch
+          UPDATE test_sessions SET stops_cached_at = NULL WHERE stops_cached_at IS NOT NULL;
+
+          -- Drop dependent indexes and constraints
+          DROP INDEX IF EXISTS uq_stop_per_session;
+
+          -- Change id from UUID to TEXT (event_id from Athena)
+          ALTER TABLE stop_records ALTER COLUMN id TYPE TEXT USING id::text;
+          ALTER TABLE stop_records ALTER COLUMN id DROP DEFAULT;
+
+          -- Drop row_index column (no longer needed)
+          ALTER TABLE stop_records DROP COLUMN IF EXISTS row_index;
+        END IF;
+      END $$;
+    `);
+
     // Seed default dashboard modes
     for (const mode of DEFAULT_MODES) {
       await client.query(

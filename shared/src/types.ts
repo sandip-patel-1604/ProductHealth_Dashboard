@@ -77,23 +77,24 @@ export interface SortConfig {
   direction: SortDirection;
 }
 
-/** Filter state for the summary table */
+/** Filter state for the summary table.
+ *  null = no filter (show all), [] = nothing selected (show nothing) */
 export interface FilterState {
-  robotId: number | null;
-  l1StopReason: string;
-  l2StopReason: string;
-  l3StopReason: string;
-  stopLocationCode: string;
+  robotIds: number[] | null;
+  l1StopReasons: string[] | null;
+  l2StopReasons: string[] | null;
+  l3StopReasons: string[] | null;
+  stopLocationCodes: string[] | null;
   minDuration: number | null;
   maxDuration: number | null;
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  robotId: null,
-  l1StopReason: '',
-  l2StopReason: '',
-  l3StopReason: '',
-  stopLocationCode: '',
+  robotIds: null,
+  l1StopReasons: null,
+  l2StopReasons: null,
+  l3StopReasons: null,
+  stopLocationCodes: null,
   minDuration: null,
   maxDuration: null,
 };
