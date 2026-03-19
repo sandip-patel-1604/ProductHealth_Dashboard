@@ -228,3 +228,14 @@ ProductHealth_Dashboard/
 - Update this CLAUDE.md file whenever significant architectural decisions are made, new tooling is added, or conventions change
 - Branch naming convention for AI work: `claude/<description>-<session-id>`
 - **After every change, update `README.md`** to reflect the current state of the project — this is the human-facing entry point. README must always cover: what the project does, prerequisites, how to run it locally (Docker), how to use the dashboard, and the current feature status. A user reading README.md for the first time should be able to get up and running without reading any other file.
+
+### Required Skills (MUST USE)
+
+Before starting any task, read and follow these files:
+- .claude/usage-aware.md
+- .claude/validation-loop.md
+- .claude/failure-memory.md
+
+- These skills are non-optional for this project. Every Claude Code session working on implementation tasks MUST use all of them.
+- If you are about to start coding without having invoked `usage-aware` and `failure-memory` (consult phase), stop and invoke them first.
+- If you have a task plan without validation tests from `task-validation-loop`, stop and invoke it before writing any implementation code.
