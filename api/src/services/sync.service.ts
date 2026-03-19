@@ -2,7 +2,7 @@ import { db } from '../db/client.js';
 import { testSessions, athenaSyncLog } from '../db/schema.js';
 import { sql } from 'drizzle-orm';
 import { parseTag, groupAthenaRows } from './tag-parser.service.js';
-import { querySessionRows } from './athena.service.js';
+import { querySessionRows, queryStopCount } from './athena.service.js';
 import type { AWSCredentials } from './sso-auth.service.js';
 // credentials are optional — null in dev mode (uses default chain)
 import type { AthenaSyncResponse, AthenaPreviewRow, AthenaPreviewResponse } from '@ph/shared';
@@ -125,6 +125,7 @@ export async function syncSessions(
 
   let sessionsCreated = 0;
   let sessionsUpdated = 0;
+  const importedSessions: { id: string; startTime: string; endTime: string }[] = [];
 
   for (const [runId, groupRows] of targetGroups) {
     const firstRow = groupRows[0];
@@ -167,14 +168,39 @@ export async function syncSessions(
         tag = EXCLUDED.tag,
         config = EXCLUDED.config,
         athena_description = EXCLUDED.athena_description
-      RETURNING (xmax = 0) AS is_insert
+      RETURNING (xmax = 0) AS is_insert, id, start_time, end_time
     `);
 
-    const isInsert = (result as any).rows?.[0]?.is_insert;
-    if (isInsert) {
+    const row = (result as any).rows?.[0];
+    if (row?.is_insert) {
       sessionsCreated++;
     } else {
       sessionsUpdated++;
+    }
+
+    if (row?.id) {
+      // pg driver returns timestamptz as Date objects — convert to ISO strings for Athena queries
+      const st = row.start_time instanceof Date ? row.start_time.toISOString() : String(row.start_time);
+      const et = row.end_time instanceof Date ? row.end_time.toISOString() : String(row.end_time);
+      importedSessions.push({ id: row.id, startTime: st, endTime: et });
+    }
+  }
+
+  // Fetch stop counts from Athena for all imported/updated sessions
+  for (const session of importedSessions) {
+    try {
+      const count = await queryStopCount(
+        credentials,
+        site,
+        session.startTime,
+        session.endTime,
+      );
+      await db.execute(sql`
+        UPDATE test_sessions SET stop_count = ${count} WHERE id = ${session.id}::uuid
+      `);
+    } catch (err) {
+      // Don't fail the whole sync if stop count query fails
+      console.warn(`Failed to fetch stop count for session ${session.id}:`, err);
     }
   }
 

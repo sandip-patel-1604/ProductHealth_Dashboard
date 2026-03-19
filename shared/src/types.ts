@@ -21,6 +21,7 @@ export interface StopRecord {
   nexusSwVersion: string;
   nrvSwVersion: string;
   vrosSwVersion: string;
+  robotSerial: string;
 }
 
 /** Metadata extracted from the .ods filename or Athena session */
@@ -52,6 +53,8 @@ export interface TestSession {
   fileMetadata: FileMetadata;
   sessionMetadata: SessionMetadata;
   stops: StopRecord[];
+  stopCount: number;
+  stopsCached: boolean;
   createdAt: string; // ISO date
 }
 
@@ -61,6 +64,7 @@ export interface SessionSummary {
   fileMetadata: FileMetadata;
   sessionMetadata: Omit<SessionMetadata, 'patches'>;
   stopCount: number;
+  stopsCached: boolean;
   createdAt: string;
 }
 
@@ -188,6 +192,13 @@ export interface AthenaSyncResponse {
   sessionsCreated: number;
   sessionsUpdated: number;
   totalRows: number;
+}
+
+/** Response from POST /sessions/:id/fetch-stops */
+export interface FetchStopsResponse {
+  stopCount: number;
+  cached: boolean;
+  stops: StopRecord[];
 }
 
 /** Auth status response */

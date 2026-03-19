@@ -116,6 +116,16 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_sync_log_site ON athena_sync_log(customersitekey);
     `);
 
+    // ── Stop report lazy-loading schema evolution ──────────────────────
+    await client.query(`
+      -- Stop count + cache tracking on test_sessions
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS stop_count INTEGER;
+      ALTER TABLE test_sessions ADD COLUMN IF NOT EXISTS stops_cached_at TIMESTAMPTZ;
+
+      -- Alphanumeric robot serial for Athena-sourced stop records
+      ALTER TABLE stop_records ADD COLUMN IF NOT EXISTS robot_serial TEXT NOT NULL DEFAULT '';
+    `);
+
     // Drop the old unique constraint on original_filename (idempotent)
     await client.query(`
       DO $$

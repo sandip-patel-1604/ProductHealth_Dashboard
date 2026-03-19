@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listSessions, getSession, deleteSession } from '../services/session.service.js';
+import { listSessions, getSession, deleteSession, fetchAndCacheStops } from '../services/session.service.js';
 import { param } from '../middleware/params.js';
 
 const router = Router();
@@ -37,6 +37,19 @@ router.delete('/:id', async (req, res, next) => {
       return;
     }
     res.json({ data: { deleted: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /sessions/:id/fetch-stops — Fetch stop records (from cache or Athena) */
+router.post('/:id/fetch-stops', async (req, res, next) => {
+  try {
+    const result = await fetchAndCacheStops(
+      param(req.params.id),
+      (req as any).awsCredentials,
+    );
+    res.json({ data: result });
   } catch (err) {
     next(err);
   }

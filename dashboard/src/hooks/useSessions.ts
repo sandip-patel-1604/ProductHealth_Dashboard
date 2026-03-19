@@ -62,3 +62,16 @@ export function useAthenaSyncStatus(site: string | null) {
     staleTime: 30_000,
   });
 }
+
+export function useFetchStops() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: sessionsApi.fetchStops,
+    onSuccess: (_data, sessionId) => {
+      // Invalidate the session query so it re-fetches with cached stops
+      qc.invalidateQueries({ queryKey: ['session', sessionId] });
+      // Also refresh the session list to update stopsCached status
+      qc.invalidateQueries({ queryKey: ['sessions'] });
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import type { ApiResponse, SessionSummary, TestSession, AthenaSyncRequest, AthenaSyncResponse, AthenaPreviewResponse } from '../lib/types';
+import type { ApiResponse, SessionSummary, TestSession, AthenaSyncRequest, AthenaSyncResponse, AthenaPreviewResponse, FetchStopsResponse } from '../lib/types';
 import { apiFetch } from './client';
 
 export const sessionsApi = {
@@ -10,6 +10,9 @@ export const sessionsApi = {
 
   delete: (id: string) =>
     apiFetch<ApiResponse<{ deleted: boolean }>>(`/sessions/${id}`, { method: 'DELETE' }).then((r) => r.data),
+
+  fetchStops: (id: string) =>
+    apiFetch<ApiResponse<FetchStopsResponse>>(`/sessions/${id}/fetch-stops`, { method: 'POST' }).then((r) => r.data),
 };
 
 export const athenaApi = {

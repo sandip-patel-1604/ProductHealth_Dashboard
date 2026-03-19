@@ -28,6 +28,9 @@ export const testSessions = pgTable('test_sessions', {
   config: text('config').notNull().default(''),
   athenaDescription: text('athena_description').notNull().default(''),
   source: text('source').notNull().default('upload'),
+  // Stop report metadata (populated from Athena fact_stop_reports)
+  stopCount: integer('stop_count'),
+  stopsCachedAt: timestamp('stops_cached_at', { withTimezone: true }),
 }, (table) => [
   index('idx_sessions_server').on(table.server),
   index('idx_sessions_release').on(table.releaseVersion),
@@ -60,6 +63,8 @@ export const stopRecords = pgTable('stop_records', {
   nexusSwVersion: text('nexus_sw_version').notNull().default(''),
   nrvSwVersion: text('nrv_sw_version').notNull().default(''),
   vrosSwVersion: text('vros_sw_version').notNull().default(''),
+  // Athena-sourced stops may have alphanumeric robot serial instead of numeric ID
+  robotSerial: text('robot_serial').notNull().default(''),
 }, (table) => [
   uniqueIndex('uq_stop_per_session').on(table.sessionId, table.rowIndex),
   index('idx_stops_session').on(table.sessionId),

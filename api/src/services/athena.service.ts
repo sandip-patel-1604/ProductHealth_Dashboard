@@ -192,3 +192,118 @@ export async function querySessionRows(
     robot_id: r.robot_id ?? '',
   }));
 }
+
+/**
+ * A single row from fact_stop_reports.
+ */
+export interface AthenaStopRow {
+  customersitekey: string;
+  code: string;
+  event_id: string;
+  date: string;
+  pose_x: string;
+  pose_y: string;
+  robot_id: string;
+  stop_location_code: string;
+  l1_stop_reason: string;
+  l2_stop_reason: string;
+  l3_stop_reason: string;
+  nexus_sw_version: string;
+  nrv_sw_version: string;
+  vros_sw_version: string;
+  stop_duration: string;
+  support_intervention_made: string;
+  pallet_loaded: string;
+}
+
+/**
+ * Query the total count of stop records for a site within a time window.
+ */
+export async function queryStopCount(
+  credentials: AWSCredentials | null | undefined,
+  site: string,
+  startTime: string,
+  endTime: string,
+): Promise<number> {
+  const client = getAthenaClient(credentials);
+
+  const safeSite = site.replace(/'/g, "''");
+  const safeStart = startTime.replace(/'/g, "''");
+  const safeEnd = endTime.replace(/'/g, "''");
+
+  const sql = `
+    SELECT COUNT(*) as cnt
+    FROM ${config.athenaStopsTable}
+    WHERE customersitekey = '${safeSite}'
+      AND date >= TIMESTAMP '${safeStart}'
+      AND date <= TIMESTAMP '${safeEnd}'
+  `;
+
+  const rows = await executeQuery(client, sql);
+  const raw = rows[0]?.cnt ?? '0';
+  return parseInt(raw, 10) || 0;
+}
+
+/**
+ * Query all stop records from fact_stop_reports for a site within a time window.
+ */
+export async function queryStopRecords(
+  credentials: AWSCredentials | null | undefined,
+  site: string,
+  startTime: string,
+  endTime: string,
+): Promise<AthenaStopRow[]> {
+  const client = getAthenaClient(credentials);
+
+  const safeSite = site.replace(/'/g, "''");
+  const safeStart = startTime.replace(/'/g, "''");
+  const safeEnd = endTime.replace(/'/g, "''");
+
+  const sql = `
+    SELECT
+      customersitekey,
+      code,
+      event_id,
+      date,
+      pose_x,
+      pose_y,
+      robot_id,
+      stop_location_code,
+      l1_stop_reason,
+      l2_stop_reason,
+      l3_stop_reason,
+      nexus_sw_version,
+      nrv_sw_version,
+      vros_sw_version,
+      stop_duration,
+      support_intervention_made,
+      pallet_loaded
+    FROM ${config.athenaStopsTable}
+    WHERE customersitekey = '${safeSite}'
+      AND date >= TIMESTAMP '${safeStart}'
+      AND date <= TIMESTAMP '${safeEnd}'
+    ORDER BY date
+  `;
+
+  const rows = await executeQuery(client, sql);
+
+  return rows.map((r) => ({
+    customersitekey: r.customersitekey ?? '',
+    code: r.code ?? '',
+    event_id: r.event_id ?? '',
+    date: r.date ?? '',
+    pose_x: r.pose_x ?? '',
+    pose_y: r.pose_y ?? '',
+    robot_id: r.robot_id ?? '',
+    stop_location_code: r.stop_location_code ?? '',
+    l1_stop_reason: r.l1_stop_reason ?? '',
+    l2_stop_reason: r.l2_stop_reason ?? '',
+    l3_stop_reason: r.l3_stop_reason ?? '',
+    nexus_sw_version: r.nexus_sw_version ?? '',
+    nrv_sw_version: r.nrv_sw_version ?? '',
+    vros_sw_version: r.vros_sw_version ?? '',
+    stop_duration: r.stop_duration ?? '',
+    support_intervention_made: r.support_intervention_made ?? '',
+    pallet_loaded: r.pallet_loaded ?? '',
+  }));
+}

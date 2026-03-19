@@ -23,6 +23,7 @@ export type {
   SSOPollResponse,
   AthenaPreviewRow,
   AthenaPreviewResponse,
+  FetchStopsResponse,
 } from '@ph/shared';
 
 export { EMPTY_FILTERS } from '@ph/shared';
